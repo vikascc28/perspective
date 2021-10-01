@@ -11,7 +11,7 @@ from enum import Enum
 
 class Plugin(Enum):
     """The plugins (grids/charts) available in Perspective.  Pass these into
-    the `plugin` arg in `PerspectiveWidget` or `PerspectiveViewer`.
+    the `plugin` arg in `PerspectiveWidget`.
 
     Examples:
         >>> widget = PerspectiveWidget(data, plugin=Plugin.TREEMAP)

@@ -14,14 +14,31 @@ import json
 
 from datetime import date, datetime
 from functools import partial
+from random import random
 from ipywidgets import DOMWidget
 from traitlets import observe, Unicode
 
 from ..core.data import deconstruct_pandas
 from ..core.exception import PerspectiveError
-from ..libpsp import is_libpsp
-from ..viewer import PerspectiveViewer
 from ..core._version import __version__
+from ..libpsp import is_libpsp
+
+from .validate import (
+    validate_plugin,
+    validate_columns,
+    validate_row_pivots,
+    validate_column_pivots,
+    validate_aggregates,
+    validate_sort,
+    validate_filters,
+    validate_expressions,
+)
+
+from .widget_attributes import PerspectiveWidgetAttributes
+
+if is_libpsp():
+    from ..libpsp import Table, View, PerspectiveManager
+    from ..core.exception import PerspectiveError
 
 
 def _type_to_string(t):
@@ -172,7 +189,7 @@ class _PerspectiveWidgetMessage(object):
         return {"id": self.id, "type": self.type, "data": self.data}
 
 
-class PerspectiveWidget(DOMWidget, PerspectiveViewer):
+class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
     """:class`~perspective.PerspectiveWidget` allows for Perspective to be used
     in the form of a JupyterLab IPython widget.
 
@@ -221,14 +238,25 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
         limit=None,
         server=False,
         client=not is_libpsp(),
+        plugin="Datagrid",
+        columns=None,
+        row_pivots=None,
+        column_pivots=None,
+        aggregates=None,
+        sort=None,
+        filters=None,
+        expressions=None,
+        plugin_config=None,
+        dark=None,
+        editable=False,
+        config=True,
         **kwargs
     ):
         """Initialize an instance of :class`~perspective.PerspectiveWidget`
-        with the given table/data and viewer configuration.
+        with the given table/data and view configuration.
 
         If a pivoted DataFrame or MultiIndex table is passed in, the widget
-        preserves pivots and applies them.  See `PerspectiveViewer.__init__` for
-        arguments that transform the view shown in the widget.
+        preserves pivots and applies them to the view state.
 
         Args:
             data (:obj:`Table`|:obj:`View`|:obj:`dict`|:obj:`list`|:obj:`pandas.DataFrame`|:obj:`bytes`|:obj:`str`): a
@@ -251,8 +279,34 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
                 binary and create the Table in Javascript using a copy of the
                 data. Defaults to False.
 
-            kwargs (:obj:`dict`): configuration options for the `PerspectiveViewer`,
-                and `Table` constructor if `data` is a dataset.
+            columns (:obj:`list` of :obj:`str`): A list of column names to be
+                visible to the user.
+    
+            row_pivots (:obj:`list` of :obj:`str`): A list of column names to
+                use as row pivots.
+
+            column_pivots (:obj:`list` of :obj:`str`): A list of column names
+                to use as column pivots.
+
+            aggregates (:obj:`dict` of :obj:`str` to :obj:`str`):  A dictionary
+                of column names to aggregate types, which specify aggregates
+                for individual columns.
+            sort (:obj:`list` of :obj:`list` of :obj:`str`): A list of lists,
+                each list containing a column name and a sort direction
+                (``asc``, ``desc``, ``asc abs``, ``desc abs``, ``col asc``,
+                ``col desc``, ``col asc abs``, ``col desc abs``).
+            filter (:obj:`list` of :obj:`list` of :obj:`str`): A list of lists,
+                each list containing a column name, a filter comparator, and a
+                value to filter by.
+            expressions (:obj:`list` of :obj:`str`): A list of string
+                expressions which are applied to the view.
+            plugin (:obj:`str`/:obj:`perspective.Plugin`): Which plugin to
+                select by default.
+            plugin_config (:obj:`dict`): A configuration for the plugin, i.e.
+                the datagrid plugin or a chart plugin.
+            dark (:obj:`bool`): Whether to invert the color theme.
+            editable (:obj:`bool`): Whether to allow editability using the grid.
+
 
         Examples:
             >>> widget = PerspectiveWidget(
@@ -263,6 +317,9 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
             ...     filter=[["a", ">", 1]],
             ...     expressions=["// new column \n \"Sales\" + \"Profit\""])
         """
+        # Initialize the DOMWidget
+        super(PerspectiveWidget, self).__init__(**kwargs)
+
         # Trigger special flow when receiving an ArrayBuffer/binary
         self._pending_binary = None
 
@@ -282,21 +339,41 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
         if index is not None and limit is not None:
             raise PerspectiveError("Index and Limit cannot be set at the same time!")
 
-        # Parse the dataset we pass in - if it's Pandas, preserve pivots
+        # Preserve pivoted DataFrames unless the user has their own pivot set
         if isinstance(data, pandas.DataFrame) or isinstance(data, pandas.Series):
             data, config = deconstruct_pandas(data)
 
-            if config.get("row_pivots", None) and "row_pivots" not in kwargs:
-                kwargs.update({"row_pivots": config["row_pivots"]})
+            if config.get("row_pivots") is not None and row_pivots is None:
+                row_pivots = config["row_pivots"]
 
-            if config.get("column_pivots", None) and "column_pivots" not in kwargs:
-                kwargs.update({"column_pivots": config["column_pivots"]})
+            if config.get("column_pivots") is not None and column_pivots is None:
+                column_pivots = config["column_pivots"]
 
-            if config.get("columns", None) and "columns" not in kwargs:
-                kwargs.update({"columns": config["columns"]})
+            if config.get("columns") is not None and columns is None:
+                columns = config["columns"]
 
-        # Initialize the viewer
-        super(PerspectiveWidget, self).__init__(**kwargs)
+        # Create an instance of `PerspectiveManager`, which receives messages
+        # from the `PerspectiveJupyterClient` on the front-end.
+        if is_libpsp():
+            self.manager = PerspectiveManager()
+
+        # The string name of the Table under management by this viewer and its
+        # attached PerspectiveManager
+        self.table_name = None
+
+        # Validate and set viewer attributes. TODO: remove
+        self.plugin = validate_plugin(plugin)
+        self.columns = validate_columns(columns) or []
+        self.row_pivots = validate_row_pivots(row_pivots) or []
+        self.column_pivots = validate_column_pivots(column_pivots) or []
+        self.aggregates = validate_aggregates(aggregates) or {}
+        self.sort = validate_sort(sort) or []
+        self.filters = validate_filters(filters) or []
+        self.expressions = validate_expressions(expressions) or []
+        self.plugin_config = plugin_config or {}
+        self.dark = dark
+        self.editable = editable
+        self.config = config
 
         # Handle messages from the the front end
         # `PerspectiveJupyterClient.send()`:
@@ -307,8 +384,6 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
 
         if self.client:
             if is_libpsp():
-                from ..libpsp import Table
-
                 if isinstance(data, Table):
                     raise PerspectiveError(
                         "Client mode PerspectiveWidget expects data or schema, not a `perspective.Table`!"
@@ -341,24 +416,87 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
 
                 self.load(data, **self._options)
 
+    @property
+    def table(self):
+        """Returns the ``perspective.Table`` that the widget is attached to."""
+        if not self.client and self.manager:
+            return self.manager.get_table(self.table_name)
+        else:
+            return None
+
     def load(self, data, **options):
-        """Load the widget with data. If running in client mode, this method
-        serializes the data and calls the browser viewer's load method.
-        Otherwise, it calls `Viewer.load()` using `super()`.
+        """Given a ``perspective.Table``, or data that can be handled by
+        ``perspective.Table``, pass it to the viewer.  Like `__init__`,
+        load accepts a `perspective.Table`, a dataset, or a schema. If running
+        in client mode, `load` defers to the browser's Perspective engine.
+        This means that loading Python-only datasets, especially ones that
+        cannot be serialized into JSON, may cause some issues.
+
+        If a ``perspective.Table`` has already been loaded, ``load()`` will
+        raise a PerspectiveError as calling load() with different datasets
+        can cause Perspective engine issues.
+
+        If data is passed in, a ``perspective.Table`` is automatically created
+        by this method, and the options passed to ``**config`` are extended to
+        the new Table.
+
+        Args:
+            data (:obj:`Table`|:obj:`View`|:obj:`dict`|:obj:`list`|:obj:`str`|:obj:`pandas.DataFrame`|:obj:`bytes`|:obj:`str`): a
+                `perspective.Table` instance, a `perspective.View` instance, or
+                a dataset to be loaded in the viewer.
+
+        Keyword Arguments:
+            index (:obj:`str`): A column name to be used as the primary key.
+                Ignored if a ``Table`` or ``View`` is supplied.
+            limit (:obj:`int`): A upper limit on the number of rows in the Table.
+                Cannot be set at the same time as `index`. Ignored if a
+                ``Table`` or ``View`` is supplied.
+
+        Examples:
+            >>> from perspective import Table, PerspectiveWidget
+            >>> data = {"a": [1, 2, 3]}
+            >>> tbl = Table(data)
+            >>> widget = PerspectiveWidget(None)
+            >>> widget.load(tbl)
+            >>> widget2 = PerspectiveViewer(tbl)
+            >>> widget.load(data) # raises PerspectiveError
+
         """
         if self.client is True:
             # serialize the data and send a custom message to the browser
             if isinstance(data, pandas.DataFrame) or isinstance(data, pandas.Series):
                 data, _ = deconstruct_pandas(data)
+
             d = _serialize(data)
             self._data = d
         else:
-            # Viewer will ignore **options if `data` is a Table or View.
-            super(PerspectiveWidget, self).load(data, **options)
+            table_name = str(random())
+
+            if isinstance(data, Table):
+                table = data
+            elif isinstance(data, View):
+                raise PerspectiveError("Only a perspective.Table or a dataset can be loaded.")
+            else:
+                table = Table(data, **options)
+
+            self.manager.host_table(table_name, table)
+
+            # Reset the viewer when `load()` is called multiple times.
+            if self.table_name is not None:
+                self.reset()
+
+            # If the user does not set columns to show, synchronize viewer state
+            # with dataset.
+            if not self.columns or len(self.columns) == 0:
+                self.columns = table.columns()
+
+            # Store the table name as the front-end uses it to interface with
+            # the hosted table.
+            self.table_name = table_name
 
             # Do not enable editing if the table is unindexed.
             if self.editable and self.table.get_index() is None:
-                logging.critical("Cannot edit on an unindexed `perspective.Table`!")
+                logging.critical("Cannot edit on an unindexed perspective.Table!")
                 self.editable = False
 
         # Notify front-end of load immediately.
@@ -377,18 +515,25 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
             d = _serialize(data)
             self.post({"cmd": "update", "data": d})
         else:
-            super(PerspectiveWidget, self).update(data)
+            if self.table is not None:
+                self.table.update(data)
 
     def clear(self):
-        """Clears the widget's underlying `Table`.
+        """Clears the widget's underlying `Table` and send the "clear" command
+        to the widget front-end.
 
         In client mode, clears the `_data` attribute of the widget.
         """
         if self.client is True:
-            self.post({"cmd": "clear"})
+            # Set _data to None in client mode.
             self._data = None
         else:
-            super(PerspectiveWidget, self).clear()
+            # Clear the underlying Python table.
+            if self.table is not None:
+                self.table.clear()
+
+        # Notify front-end of clear.
+        self.post({"cmd": "clear"})
 
     def replace(self, data):
         """Replaces the widget's `Table` with new data conforming to the same
@@ -402,23 +547,41 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
             self.post({"cmd": "replace", "data": d})
             self._data = d
         else:
-            super(PerspectiveWidget, self).replace(data)
+            # In client-server mode (default), treat a replace() as a clear()
+            # and update() so that the front-end table is in sync with the
+            # table on the kernel.
+            self.clear()
+            self.update(data)
 
-    def delete(self, delete_table=True):
-        """Delete the Widget's data and clears its internal state. If running in
-        client mode, sends the `delete()` command to the browser. Otherwise
-        calls `delete` on the underlying viewer.
+    def save(self):
+        """Save the widget's current state to a dictionary by querying the
+        widget front-end through the Jupyter comm."""
+        return {}
 
-        Args:
-            delete_table (`bool`): whether the underlying `Table` will be
-                deleted. Defaults to True.
+    def restore(self, **kwargs):
+        """Set the widget's view state using config."""
+        self.post({"cmd": "restore", "data": kwargs})
+
+    def reset(self):
+        """Reset the widget's attributes and state, but do not delete or
+        modify the underlying perspective.Table."""
+        self.post({"cmd": "reset"})
+
+    def delete(self):
+        """Delete the Widget's data and clears its internal state, but does
+        not delete the perspective.Table linked to the widget.
         """
-        if self.client is False:
-            super(PerspectiveWidget, self).delete(delete_table)
         self.post({"cmd": "delete"})
 
-        # Close the underlying comm and remove widget from the front-end
+        # Clears the comm and removes the widget from view
         self.close()
+
+        # Remove the hosted table from the manager - if the widget was
+        # initialized with a table, the reference will still be valid, but
+        # the table created for a widget initialized with data will
+        # dereference and be GC'd as intended.
+        self.manager._tables.pop(self.table_name)
+        self.table_name = None
 
     def post(self, msg, msg_id=None, binary=False):
         """Post a serialized message to the `PerspectiveJupyterClient`

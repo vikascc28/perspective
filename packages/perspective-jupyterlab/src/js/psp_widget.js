@@ -25,14 +25,21 @@ let _increment = 0;
  */
 export class PerspectiveWidget extends Widget {
     constructor(name = "Perspective", options = {}) {
+        // Create a <div> to hold the widget
         super({
             node: options.bindto || document.createElement("div"),
         });
+
+        // Create the <perspective-viewer> node
         this._viewer = PerspectiveWidget.createNode(this.node);
+
         this.title.label = name;
         this.title.caption = `${name}`;
         this.id = `${name}-` + _increment;
         _increment += 1;
+
+        console.log(options);
+
         this._set_attributes(options);
     }
 
@@ -43,7 +50,7 @@ export class PerspectiveWidget extends Widget {
      */
 
     _set_attributes(options) {
-        const plugin = options.plugin || "datagrid";
+        const plugin = options.plugin || "Datagrid";
         const columns = options.columns || [];
         const row_pivots = options.row_pivots || options.row_pivots || [];
         const column_pivots =
@@ -56,8 +63,20 @@ export class PerspectiveWidget extends Widget {
         const dark = options.dark || false;
         const editable = options.editable || false;
         const server = options.server || false;
+
+        console.log(
+            plugin,
+            columns,
+            row_pivots,
+            column_pivots,
+            aggregates,
+            sort,
+            filter,
+            expressions,
+            plugin_config
+        );
         const client = options.client || false;
-        // const selectable: boolean = options.selectable || false;
+
         this.server = server;
         this.client = client;
         this.dark = dark;
@@ -73,8 +92,7 @@ export class PerspectiveWidget extends Widget {
             expressions,
             filter,
         };
-        // this.plugin_config = plugin_config;
-        // this.selectable = selectable;
+        console.log(this._viewer_config);
     }
 
     /**********************/
@@ -130,8 +148,8 @@ export class PerspectiveWidget extends Widget {
      */
 
     async load(table) {
-        this.viewer.load(table);
-        await this.viewer.restore(this._viewer_config);
+        await this.viewer.load(table);
+        await this.restore(this._viewer_config);
     }
 
     /**
@@ -172,8 +190,8 @@ export class PerspectiveWidget extends Widget {
      * method) must be called in order for its memory to be reclaimed.
      */
 
-    delete() {
-        this.viewer.delete();
+    async delete() {
+        await this.viewer.delete();
     }
 
     /**
@@ -294,18 +312,6 @@ export class PerspectiveWidget extends Widget {
             this.viewer.setAttribute("editable", "");
         } else {
             this.viewer.removeAttribute("editable");
-        }
-    }
-
-    get selectable() {
-        return this.viewer.hasAttribute("selectable");
-    }
-
-    set selectable(row_selection) {
-        if (row_selection) {
-            this.viewer.setAttribute("selectable", "");
-        } else {
-            this.viewer.removeAttribute("selectable");
         }
     }
 

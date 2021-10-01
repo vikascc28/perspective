@@ -11,7 +11,7 @@ from enum import Enum
 
 class Aggregate(Enum):
     """The aggregation operators available in Perspective. Pass these into the
-    `aggregates` arg in `PerspectiveWidget` or `PerspectiveViewer`.
+    `aggregates` arg in `PerspectiveWidget`.
 
     Examples:
         >>> widget = PerspectiveWidget(data, aggregates={"a": Aggregate.LAST})
