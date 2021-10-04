@@ -38,7 +38,6 @@ from .widget_attributes import PerspectiveWidgetAttributes
 
 if is_libpsp():
     from ..libpsp import Table, View, PerspectiveManager
-    from ..core.exception import PerspectiveError
 
 
 def _type_to_string(t):
@@ -281,7 +280,7 @@ class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
 
             columns (:obj:`list` of :obj:`str`): A list of column names to be
                 visible to the user.
-    
+
             row_pivots (:obj:`list` of :obj:`str`): A list of column names to
                 use as row pivots.
 
@@ -475,7 +474,9 @@ class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
             if isinstance(data, Table):
                 table = data
             elif isinstance(data, View):
-                raise PerspectiveError("Only a perspective.Table or a dataset can be loaded.")
+                raise PerspectiveError(
+                    "Only a perspective.Table or a dataset can be loaded."
+                )
             else:
                 table = Table(data, **options)
 

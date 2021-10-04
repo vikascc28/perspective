@@ -172,6 +172,7 @@ export class PerspectiveView extends DOMWidgetView {
             this._handle_load_message(msg);
         } else {
             const cmd = msg.data["cmd"];
+            console.log(msg);
 
             // Handle viewer-specific commands, which need to apply
             // regardless of whether the widget is in client or server mode.
