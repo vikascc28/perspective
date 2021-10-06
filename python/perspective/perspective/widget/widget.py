@@ -23,172 +23,13 @@ from ..core.exception import PerspectiveError
 from ..core._version import __version__
 from ..libpsp import is_libpsp
 
-from .validate import (
-    validate_plugin,
-    validate_columns,
-    validate_row_pivots,
-    validate_column_pivots,
-    validate_aggregates,
-    validate_sort,
-    validate_filters,
-    validate_expressions,
-)
-
-from .widget_attributes import PerspectiveWidgetAttributes
+from .widget_traitlets import PerspectiveTraitlets
 
 if is_libpsp():
     from ..libpsp import Table, View, PerspectiveManager
 
 
-def _type_to_string(t):
-    """Convert a type object to a string representing a Perspective-supported
-    type.  Redefine here as we can't have any dependencies on libbinding in
-    client mode.
-    """
-    if t in six.integer_types:
-        return "integer"
-    elif t is float:
-        return "float"
-    elif t is bool:
-        return "boolean"
-    elif t is date:
-        return "date"
-    elif t is datetime:
-        return "datetime"
-    elif t is six.binary_type or t is six.text_type:
-        return "string"
-    else:
-        raise PerspectiveError(
-            "Unsupported type `{0}` in schema - Perspective supports `int`, `float`, `bool`, `date`, `datetime`, and `str` (or `unicode`).".format(
-                str(t)
-            )
-        )
-
-
-def _serialize_datetime(values):
-    """For a list of values, stringify the `date` and `datetime` values
-    using strftime."""
-    cleaned = []
-
-    for v in values:
-        if type(v) is datetime:
-            # isinstance(datetime, date) will always return True, so
-            # do a type comparison instead.
-            cleaned.append(v.strftime("%Y-%m-%d %H:%M:%S"))
-        elif type(v) is date:
-            cleaned.append(v.strftime("%Y-%m-%d"))
-        else:
-            cleaned.append(v)
-
-    return cleaned
-
-
-def _serialize(data):
-    """In client mode, PerspectiveWidget will normalize the data before
-    passing it to the front-end.
-
-    Widget comms use a custom serializer and messages are not manually
-    serialized to JSON by the user, so take special care to remove certain
-    unparsable values such as `datetime.date`."""
-    if isinstance(data, list):
-        # Check if any values are `datetime.date`
-        for row in data:
-            if not isinstance(row, dict):
-                raise PerspectiveError(
-                    "Received {} in list dataset, expected `dict`!".format(type(row))
-                )
-
-            for k in six.iterkeys(row):
-                if type(row[k]) is datetime:
-                    row[k] = row[k].strftime("%Y-%m-%d %H:%M:%S.%f")
-                elif type(row[k]) is date:
-                    row[k] = row[k].strftime("%Y-%m-%d")
-        return data
-    elif isinstance(data, dict):
-        formatted = data
-
-        for v in six.itervalues(data):
-            if isinstance(v, type):
-                # serialize schema values to string
-                return {
-                    column_name: _type_to_string(data[column_name])
-                    for column_name in data
-                }
-            elif isinstance(v, numpy.ndarray):
-                # Convert dicts of numpy arrays to dicts of lists
-                formatted = {
-                    column_name: data[column_name].tolist() for column_name in data
-                }
-                break
-
-        for column_name in six.iterkeys(formatted):
-            # Replace `datetime.datetime` and `datetime.date` with string
-            formatted[column_name] = _serialize_datetime(formatted[column_name])
-
-        return formatted
-    elif isinstance(data, numpy.ndarray):
-        # structured or record array
-        if not isinstance(data.dtype.names, tuple):
-            raise NotImplementedError(
-                "Data should be dict of numpy.ndarray or a structured array."
-            )
-
-        columns = [data[col].tolist() for col in data.dtype.names]
-        formatted = dict(zip(data.dtype.names, columns))
-
-        for column_name in six.iterkeys(formatted):
-            # Replace `datetime.datetime` and `datetime.date` with string
-            formatted[column_name] = _serialize_datetime(formatted[column_name])
-
-        return formatted
-    elif isinstance(data, pandas.DataFrame) or isinstance(data, pandas.Series):
-        # Take flattened dataframe and make it serializable
-        d = {}
-
-        for name in data.columns:
-            column = data[name]
-            values = column.values
-
-            # Timezone-aware datetime64 dtypes throw an exception when using
-            # `numpy.issubdtype` - match strings here instead.
-            str_dtype = str(column.dtype)
-            if "datetime64" in str_dtype:
-                # Convert all datetimes to string for serializing
-                d[name] = column.dt.strftime("%Y-%m-%d %H:%M:%S").tolist()
-            elif str_dtype == "object":
-                # Replace `datetime.datetime` and `datetime.date` with string
-                d[name] = _serialize_datetime(values)
-            else:
-                d[name] = values.tolist()
-        return d
-    else:
-        raise NotImplementedError(
-            "Cannot serialize a dataset of `{0}`.".format(str(type(data)))
-        )
-
-
-class _PerspectiveWidgetMessage(object):
-    """A custom message that will be passed from the Python widget to the
-    front-end.
-
-    When creating new messages, use this class as it defines a concrete schema
-    for the message and prevents loosely creating `dict` objects everywhere.
-    Use `to_dict()` to obtain the message in a form that can be sent through
-    IPyWidgets.
-    """
-
-    def __init__(self, msg_id, msg_type, msg_data):
-        """Create a new PerspectiveWidgetMessage."""
-        self.id = msg_id
-        self.type = msg_type
-        self.data = msg_data
-
-    def to_dict(self):
-        """Returns a dictionary representation of the message."""
-        return {"id": self.id, "type": self.type, "data": self.data}
-
-
-class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
+class PerspectiveWidget(DOMWidget, PerspectiveTraitlets):
     """:class`~perspective.PerspectiveWidget` allows for Perspective to be used
     in the form of a JupyterLab IPython widget.
 
@@ -237,18 +78,8 @@ class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
         limit=None,
         server=False,
         client=not is_libpsp(),
-        plugin="Datagrid",
-        columns=None,
-        row_pivots=None,
-        column_pivots=None,
-        aggregates=None,
-        sort=None,
-        filters=None,
-        expressions=None,
-        plugin_config=None,
         dark=None,
         editable=False,
-        config=True,
         **kwargs
     ):
         """Initialize an instance of :class`~perspective.PerspectiveWidget`
@@ -342,14 +173,14 @@ class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
         if isinstance(data, pandas.DataFrame) or isinstance(data, pandas.Series):
             data, config = deconstruct_pandas(data)
 
-            if config.get("row_pivots") is not None and row_pivots is None:
-                row_pivots = config["row_pivots"]
+            # if config.get("row_pivots") is not None and row_pivots is None:
+            #     row_pivots = config["row_pivots"]
 
-            if config.get("column_pivots") is not None and column_pivots is None:
-                column_pivots = config["column_pivots"]
+            # if config.get("column_pivots") is not None and column_pivots is None:
+            #     column_pivots = config["column_pivots"]
 
-            if config.get("columns") is not None and columns is None:
-                columns = config["columns"]
+            # if config.get("columns") is not None and columns is None:
+            #     columns = config["columns"]
 
         # Create an instance of `PerspectiveManager`, which receives messages
         # from the `PerspectiveJupyterClient` on the front-end.
@@ -360,19 +191,9 @@ class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
         # attached PerspectiveManager
         self.table_name = None
 
-        # Validate and set viewer attributes. TODO: remove
-        self.plugin = validate_plugin(plugin)
-        self.columns = validate_columns(columns) or []
-        self.row_pivots = validate_row_pivots(row_pivots) or []
-        self.column_pivots = validate_column_pivots(column_pivots) or []
-        self.aggregates = validate_aggregates(aggregates) or {}
-        self.sort = validate_sort(sort) or []
-        self.filters = validate_filters(filters) or []
-        self.expressions = validate_expressions(expressions) or []
-        self.plugin_config = plugin_config or {}
+        # Validate and set viewer attributes.
         self.dark = dark
         self.editable = editable
-        self.config = config
 
         # Handle messages from the the front end
         # `PerspectiveJupyterClient.send()`:
@@ -487,9 +308,9 @@ class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
                 self.reset()
 
             # If the user does not set columns to show, synchronize viewer state
-            # with dataset.
-            if not self.columns or len(self.columns) == 0:
-                self.columns = table.columns()
+            # with dataset. TODO: remove
+            # if not self.columns or len(self.columns) == 0:
+            #     self.columns = table.columns()
 
             # Store the table name as the front-end uses it to interface with
             # the hosted table.
@@ -703,3 +524,151 @@ class PerspectiveWidget(DOMWidget, PerspectiveWidgetAttributes):
             raise PerspectiveError(
                 "Widget does not have any data loaded - use the `load()` method to provide it with data."
             )
+
+
+class _PerspectiveWidgetMessage(object):
+    """A custom message that will be passed from the Python widget to the
+    front-end.
+
+    When creating new messages, use this class as it defines a concrete schema
+    for the message and prevents loosely creating `dict` objects everywhere.
+    Use `to_dict()` to obtain the message in a form that can be sent through
+    IPyWidgets.
+    """
+
+    def __init__(self, msg_id, msg_type, msg_data):
+        """Create a new PerspectiveWidgetMessage."""
+        self.id = msg_id
+        self.type = msg_type
+        self.data = msg_data
+
+    def to_dict(self):
+        """Returns a dictionary representation of the message."""
+        return {"id": self.id, "type": self.type, "data": self.data}
+
+
+def _type_to_string(t):
+    """Convert a type object to a string representing a Perspective-supported
+    type.  Redefine here as we can't have any dependencies on libbinding in
+    client mode.
+    """
+    if t in six.integer_types:
+        return "integer"
+    elif t is float:
+        return "float"
+    elif t is bool:
+        return "boolean"
+    elif t is date:
+        return "date"
+    elif t is datetime:
+        return "datetime"
+    elif t is six.binary_type or t is six.text_type:
+        return "string"
+    else:
+        raise PerspectiveError(
+            "Unsupported type `{0}` in schema - Perspective supports `int`, `float`, `bool`, `date`, `datetime`, and `str` (or `unicode`).".format(
+                str(t)
+            )
+        )
+
+
+def _serialize_datetime(values):
+    """For a list of values, stringify the `date` and `datetime` values
+    using strftime."""
+    cleaned = []
+
+    for v in values:
+        if type(v) is datetime:
+            # isinstance(datetime, date) will always return True, so
+            # do a type comparison instead.
+            cleaned.append(v.strftime("%Y-%m-%d %H:%M:%S"))
+        elif type(v) is date:
+            cleaned.append(v.strftime("%Y-%m-%d"))
+        else:
+            cleaned.append(v)
+
+    return cleaned
+
+
+def _serialize(data):
+    """In client mode, PerspectiveWidget will normalize the data before
+    passing it to the front-end.
+
+    Widget comms use a custom serializer and messages are not manually
+    serialized to JSON by the user, so take special care to remove certain
+    unparsable values such as `datetime.date`."""
+    if isinstance(data, list):
+        # Check if any values are `datetime.date`
+        for row in data:
+            if not isinstance(row, dict):
+                raise PerspectiveError(
+                    "Received {} in list dataset, expected `dict`!".format(type(row))
+                )
+
+            for k in six.iterkeys(row):
+                if type(row[k]) is datetime:
+                    row[k] = row[k].strftime("%Y-%m-%d %H:%M:%S.%f")
+                elif type(row[k]) is date:
+                    row[k] = row[k].strftime("%Y-%m-%d")
+        return data
+    elif isinstance(data, dict):
+        formatted = data
+
+        for v in six.itervalues(data):
+            if isinstance(v, type):
+                # serialize schema values to string
+                return {
+                    column_name: _type_to_string(data[column_name])
+                    for column_name in data
+                }
+            elif isinstance(v, numpy.ndarray):
+                # Convert dicts of numpy arrays to dicts of lists
+                formatted = {
+                    column_name: data[column_name].tolist() for column_name in data
+                }
+                break
+
+        for column_name in six.iterkeys(formatted):
+            # Replace `datetime.datetime` and `datetime.date` with string
+            formatted[column_name] = _serialize_datetime(formatted[column_name])
+
+        return formatted
+    elif isinstance(data, numpy.ndarray):
+        # structured or record array
+        if not isinstance(data.dtype.names, tuple):
+            raise NotImplementedError(
+                "Data should be dict of numpy.ndarray or a structured array."
+            )
+
+        columns = [data[col].tolist() for col in data.dtype.names]
+        formatted = dict(zip(data.dtype.names, columns))
+
+        for column_name in six.iterkeys(formatted):
+            # Replace `datetime.datetime` and `datetime.date` with string
+            formatted[column_name] = _serialize_datetime(formatted[column_name])
+
+        return formatted
+    elif isinstance(data, pandas.DataFrame) or isinstance(data, pandas.Series):
+        # Take flattened dataframe and make it serializable
+        d = {}
+
+        for name in data.columns:
+            column = data[name]
+            values = column.values
+
+            # Timezone-aware datetime64 dtypes throw an exception when using
+            # `numpy.issubdtype` - match strings here instead.
+            str_dtype = str(column.dtype)
+            if "datetime64" in str_dtype:
+                # Convert all datetimes to string for serializing
+                d[name] = column.dt.strftime("%Y-%m-%d %H:%M:%S").tolist()
+            elif str_dtype == "object":
+                # Replace `datetime.datetime` and `datetime.date` with string
+                d[name] = _serialize_datetime(values)
+            else:
+                d[name] = values.tolist()
+        return d
+    else:
+        raise NotImplementedError(
+            "Cannot serialize a dataset of `{0}`.".format(str(type(data)))
+        )

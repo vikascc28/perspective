@@ -21,7 +21,8 @@ import {perspectiveRenderers} from "./renderer";
 import {PerspectiveJupyterPlugin} from "./plugin";
 
 /**
- * Export the renderer as default.
+ * Export both the PerspectiveWidget for Jupyterlab, and the perspective
+ * renderers that allow for viewing data in Jupyterlab with Perspective.
  */
 const plugins = [PerspectiveJupyterPlugin, perspectiveRenderers];
 export default plugins;

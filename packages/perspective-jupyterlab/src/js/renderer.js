@@ -17,7 +17,7 @@ import {
 } from "@jupyterlab/apputils";
 
 import {ABCWidgetFactory, DocumentWidget} from "@jupyterlab/docregistry";
-import {PerspectiveWidget} from "./psp_widget";
+import {PerspectiveJupyterWidget} from "./widget";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 // const perspective = require("@finos/perspective").default;
@@ -49,7 +49,7 @@ const WORKER = perspective.worker();
 export class PerspectiveDocumentWidget extends DocumentWidget {
     constructor(options, type = "csv") {
         super({
-            content: new PerspectiveWidget("Perspective", {
+            content: new PerspectiveJupyterWidget("Perspective", {
                 editable: true,
             }),
             context: options.context,
