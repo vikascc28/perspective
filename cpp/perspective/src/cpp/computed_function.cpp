@@ -442,12 +442,30 @@ namespace computed_function {
         const std::string& match_string = str.to_string();
         const std::string& match_pattern = pattern.to_string();
 
+        // Compile the pattern if it's the first time we've seen it - store
+        // the pattern in the map even if it fails to compile, as we don't
+        // want to repeatly compile patterns bad or good.
+        std::shared_ptr<RE2> compiled_pattern;
+
         if (m_pattern_map->count(match_pattern) == 0) {
-            m_pattern_map->insert({match_pattern, std::make_shared<boost::regex>(match_pattern)});
+            // RE2::Quiet disables console logging on fail-to-compile
+            compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
+
+            // Insert the compiled pattern into the map, even if it fails
+            m_pattern_map->insert({match_pattern, compiled_pattern});
         }
 
-        bool match_result = t_regex::match(match_string, m_pattern_map->operator[](match_pattern)); 
-        rval.set(match_result);
+        // Get the pattern from the map
+        compiled_pattern = m_pattern_map->operator[](match_pattern);
+
+        // If the pattern is invalid, return rval which is null and will set
+        // the row to null.
+        if (!compiled_pattern->ok()) {
+            return rval;
+        }
+
+        // Perform the match and return
+        rval.set(RE2::FullMatch(match_string, *compiled_pattern));
 
         return rval;
     }
@@ -485,29 +503,29 @@ namespace computed_function {
         if (!str_scalar.is_valid() || !search_str_scalar.is_valid())
             return rval;
 
-        const std::string& str = str_scalar.to_string();
-        boost::regex pattern(search_str_scalar.to_string());
-        boost::match_results<std::string::const_iterator> results;
+        // const std::string& str = str_scalar.to_string();
+        // boost::regex pattern(search_str_scalar.to_string());
+        // boost::match_results<std::string::const_iterator> results;
 
-        bool found
-            = boost::regex_search(str, results, pattern, boost::match_default);
+        // bool found
+        //     = boost::regex_search(str, results, pattern, boost::match_default);
 
-        rval.set(found);
+        // rval.set(found);
 
-        if (!found || results.empty()) {
-            output_vector[0] = mknone();
-            output_vector[1] = mknone();
-            return rval;
-        }
+        // if (!found || results.empty()) {
+        //     output_vector[0] = mknone();
+        //     output_vector[1] = mknone();
+        //     return rval;
+        // }
 
-        double start = static_cast<double>(results.position());
-        double end = static_cast<double>(start + results.length() - 1);
+        // double start = static_cast<double>(results.position());
+        // double end = static_cast<double>(start + results.length() - 1);
 
-        if (end < 0)
-            end = 0;
+        // if (end < 0)
+        //     end = 0;
 
-        output_vector[0] = mktscalar(start);
-        output_vector[1] = mktscalar(end);
+        // output_vector[0] = mktscalar(start);
+        // output_vector[1] = mktscalar(end);
 
         return rval;
     }
