@@ -334,6 +334,7 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
 		#########################
 		# PYTHON BINDINGS BUILD #
 		#########################
+		set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 		include_directories("${PSP_PYTHON_SRC}/perspective/include")
 
 		# Set CMP0094 to NEW - find the first version that matches constraints,

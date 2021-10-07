@@ -741,7 +741,7 @@ module.exports = (perspective) => {
 
             const expressions = [
                 `match("a", 'ABC')`,
-                "match('abc', 'abc')",
+                "match('aBc', '[aAbBcC]{3}')",
                 `match("a", 'A')`,
             ];
 
@@ -770,7 +770,7 @@ module.exports = (perspective) => {
             await table.delete();
         });
 
-        it("Match string with bad regex should return none", async () => {
+        it("Match string with bad regex should fail type-checking", async () => {
             const table = await perspective.table({
                 a: ["ABC", "DEF", "cbA", "HIjK", "lMNoP"],
                 b: ["ABC", "ad", "asudfh", "HIjK", "lMNoP"],
@@ -782,12 +782,27 @@ module.exports = (perspective) => {
                 `match("a", '?')`,
             ];
 
+            const validated = await table.validate_expressions(expressions);
+            expect(validated.expression_schema).toEqual({});
+
+            for (const expr of expressions) {
+                expect(validated.expression_schema[expr]).toBeUndefined();
+                expect(validated.errors[expr]).toEqual({
+                    line: 0,
+                    column: 0,
+                    error_message:
+                        "Type Error - inputs do not resolve to a valid expression.",
+                });
+            }
+
+            // Because a bad regex does not raise a parse error, it is still
+            // valid to create a view from them.
             const view = await table.view({
                 expressions,
             });
 
-            const results = await view.to_columns();
             const schema = await view.expression_schema();
+            const results = await view.to_columns();
 
             for (const expr of expressions) {
                 expect(schema[expr]).toEqual("boolean");
@@ -814,13 +829,25 @@ module.exports = (perspective) => {
 
             for (const expr of expressions) {
                 expect(validated.expression_schema[expr]).toBeUndefined();
-                expect(validated.errors[expr]).toEqual({
-                    column: 0,
-                    line: 0,
-                    error_message:
-                        "Type Error - inputs do not resolve to a valid expression.",
-                });
             }
+
+            expect(validated.errors[expressions[0]].error_message).toEqual(
+                "Parser Error - Failed parameter type check for function 'match', Expected 'TS' call set: 'TT'"
+            );
+
+            expect(validated.errors[expressions[1]]).toEqual({
+                line: 0,
+                column: 0,
+                error_message:
+                    "Type Error - inputs do not resolve to a valid expression.",
+            });
+
+            expect(validated.errors[expressions[2]]).toEqual({
+                line: 0,
+                column: 0,
+                error_message:
+                    "Type Error - inputs do not resolve to a valid expression.",
+            });
 
             await table.delete();
         });
@@ -863,43 +890,6 @@ module.exports = (perspective) => {
                 true,
                 false,
             ]);
-
-            await view.delete();
-            await table.delete();
-        });
-
-        it("Match string with string", async () => {
-            const table = await perspective.table({
-                a: ["ABC", "DEF", "cbA", "HIjK", "lMNoP"],
-                b: ["ABC", "ad", "asudfh", "HIjK", "lMNoP"],
-            });
-
-            const expressions = [
-                `match("a", 'ABC')`,
-                "match('abc', 'abc')",
-                `match("a", 'A')`,
-            ];
-
-            const view = await table.view({
-                expressions,
-            });
-
-            const schema = await view.expression_schema();
-
-            for (const expr of expressions) {
-                expect(schema[expr]).toEqual("boolean");
-            }
-
-            const results = await view.to_columns();
-            expect(results[expressions[0]]).toEqual([
-                true,
-                false,
-                false,
-                false,
-                false,
-            ]);
-            expect(results[expressions[1]]).toEqual(Array(5).fill(true));
-            expect(results[expressions[2]]).toEqual(Array(5).fill(false));
 
             await view.delete();
             await table.delete();
