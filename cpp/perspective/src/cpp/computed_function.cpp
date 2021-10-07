@@ -408,7 +408,7 @@ namespace computed_function {
     }
 
     match::match(std::shared_ptr<t_regex_pattern_map> pattern_map)
-        : exprtk::igeneric_function<t_tscalar>("TT")
+        : exprtk::igeneric_function<t_tscalar>("TS")
         , m_pattern_map(pattern_map) {}
 
     match::~match() {}
@@ -421,50 +421,43 @@ namespace computed_function {
 
         // Parameters already validated
         t_scalar_view str_view(parameters[0]);
-        t_scalar_view pattern_view(parameters[1]);
+        t_string_view pattern_view(parameters[1]);
 
         t_tscalar str = str_view();
-        t_tscalar pattern = pattern_view();
+        std::string match_pattern
+            = std::string(pattern_view.begin(), pattern_view.end());
 
-        // Type-check: only operate on strings
-        if ((str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR)
-            || (pattern.get_dtype() != DTYPE_STR
-                || pattern.m_status == STATUS_CLEAR)) {
+        // Type-check: only operate on strings, and pattern must be > size 0
+        if (str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR || match_pattern.size() == 0) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
 
-        // Validity check OR exit early if pattern map is none, as that
-        // indicates that we're in type check mode.
-        if (!str.is_valid() || !pattern.is_valid() || m_pattern_map == nullptr)
+        // Check that the pattern is valid
+        std::shared_ptr<RE2> compiled_pattern;
+
+        if (m_pattern_map == nullptr || m_pattern_map->count(match_pattern) == 0) {
+            compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
+
+            // Return invalid value if the pattern does not compile
+            if (!compiled_pattern->ok()) {
+                rval.m_status = STATUS_CLEAR;
+                return rval;
+            }
+
+            // Insert pattern into the map if it compiles
+            if (m_pattern_map != nullptr) {
+                m_pattern_map->insert({match_pattern, compiled_pattern});
+            }
+        }
+
+        if (!str.is_valid() || m_pattern_map == nullptr)
             return rval;
 
         const std::string& match_string = str.to_string();
-        const std::string& match_pattern = pattern.to_string();
 
-        // Compile the pattern if it's the first time we've seen it - store
-        // the pattern in the map even if it fails to compile, as we don't
-        // want to repeatly compile patterns bad or good.
-        std::shared_ptr<RE2> compiled_pattern;
-
-        if (m_pattern_map->count(match_pattern) == 0) {
-            // RE2::Quiet disables console logging on fail-to-compile
-            compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
-
-            // Insert the compiled pattern into the map, even if it fails
-            m_pattern_map->insert({match_pattern, compiled_pattern});
-        }
-
-        // Get the pattern from the map
+        // Get the pattern from the map and perform the match.
         compiled_pattern = m_pattern_map->operator[](match_pattern);
-
-        // If the pattern is invalid, return rval which is null and will set
-        // the row to null.
-        if (!compiled_pattern->ok()) {
-            return rval;
-        }
-
-        // Perform the match and return
         rval.set(RE2::FullMatch(match_string, *compiled_pattern));
 
         return rval;

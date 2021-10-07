@@ -14,7 +14,7 @@ from .libbinding import t_dtype
 ALIAS_REGEX = re.compile(r"//(.+)\n")
 EXPRESSION_COLUMN_NAME_REGEX = re.compile(r"\"(.*?[^\\])\"")
 STRING_LITERAL_REGEX = re.compile(r"'(.*?[^\\])'")
-BUCKET_LITERAL_REGEX = re.compile(r"bucket\(.*?,\s*(intern\(\'([smhDWMY])\'\))\s*\)")
+FUNCTION_LITERAL_REGEX = re.compile(r"(bucket|match|find)\(.*?,\s*(intern\(\'(.+)\'\))\s*\)")
 BOOLEAN_LITERAL_REGEX = re.compile(r"([a-zA-Z_]+[a-zA-Z0-9_]*)")
 
 
@@ -199,8 +199,8 @@ def _parse_expression_strings(expressions):
             parsed,
         )
 
-        # remove the `intern()` in bucket - TODO: this is messy
-        parsed = re.sub(BUCKET_LITERAL_REGEX, _replace_bucket_unit, parsed)
+        # remove the `intern()` in bucket and regex fn - TODO: this is messy
+        parsed = re.sub(FUNCTION_LITERAL_REGEX, _replace_bucket_unit, parsed)
 
         validated = [alias, expression, parsed, column_id_map]
 
