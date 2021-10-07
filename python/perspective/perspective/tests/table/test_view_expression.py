@@ -1440,3 +1440,16 @@ class TestViewExpression(object):
         }
         results = view.to_columns()
         assert results["computed"] == [True, True, True, True, True, False]
+
+    def test_view_string_match_invalid_regex(self):
+        table = Table({
+            "a": ["abc", "ABC", "abc", "123", "AZDD", ""]
+        })
+        view = table.view(expressions=[
+            '// computed\nmatch("a", \'*.\')'
+        ])
+        assert view.expression_schema() == {
+            "computed": bool
+        }
+        results = view.to_columns()
+        assert results["computed"] == [None for _ in range(6)]

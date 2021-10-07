@@ -770,6 +770,34 @@ module.exports = (perspective) => {
             await table.delete();
         });
 
+        it("Match string with bad regex should return none", async () => {
+            const table = await perspective.table({
+                a: ["ABC", "DEF", "cbA", "HIjK", "lMNoP"],
+                b: ["ABC", "ad", "asudfh", "HIjK", "lMNoP"],
+            });
+
+            const expressions = [
+                `match("a", '*.')`,
+                "match('abc', '(?=a)')",
+                `match("a", '?')`,
+            ];
+
+            const view = await table.view({
+                expressions,
+            });
+
+            const results = await view.to_columns();
+            const schema = await view.expression_schema();
+
+            for (const expr of expressions) {
+                expect(schema[expr]).toEqual("boolean");
+                expect(results[expr]).toEqual(Array(5).fill(null));
+            }
+
+            await view.delete();
+            await table.delete();
+        });
+
         it("Match should only work on strings", async () => {
             const table = await perspective.table({
                 a: ["ABC", "DEF", "cbA", "HIjK", "lMNoP"],

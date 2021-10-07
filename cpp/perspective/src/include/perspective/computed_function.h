@@ -16,16 +16,16 @@
 #include <perspective/scalar.h>
 #include <perspective/column.h>
 #include <perspective/data_table.h>
-#include <perspective/regex.h>
 #include <perspective/exprtk.h>
 #include <boost/algorithm/string.hpp>
 #include <type_traits>
 #include <date/date.h>
 #include <tsl/hopscotch_set.h>
+#include <re2/re2.h>
 
 namespace perspective {
 
-typedef tsl::hopscotch_map<std::string, std::shared_ptr<boost::regex>> t_regex_pattern_map;
+typedef tsl::hopscotch_map<std::string, std::shared_ptr<RE2>> t_regex_pattern_map;
 
 namespace computed_function {
 
