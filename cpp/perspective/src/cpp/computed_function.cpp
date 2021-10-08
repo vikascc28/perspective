@@ -439,7 +439,8 @@ namespace computed_function {
         if (m_pattern_map == nullptr || m_pattern_map->count(match_pattern) == 0) {
             compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
 
-            // Return invalid value if the pattern does not compile
+            // Return invalid value if the pattern does not compile - this will
+            // trigger an invalid type check error.
             if (!compiled_pattern->ok()) {
                 rval.m_status = STATUS_CLEAR;
                 return rval;
@@ -458,13 +459,17 @@ namespace computed_function {
 
         // Get the pattern from the map and perform the match.
         compiled_pattern = m_pattern_map->operator[](match_pattern);
-        rval.set(RE2::FullMatch(match_string, *compiled_pattern));
+        rval.set(RE2::PartialMatch(match_string, *compiled_pattern));
 
         return rval;
     }
 
-    find::find()
-        : exprtk::igeneric_function<t_tscalar>("TTV") {}
+    find::find(
+        std::shared_ptr<t_vocab> expression_vocab,
+        std::shared_ptr<t_regex_pattern_map> pattern_map)
+        : exprtk::igeneric_function<t_tscalar>("TS")
+        , m_expression_vocab(expression_vocab)
+        , m_pattern_map(pattern_map) {}
 
     find::~find() {}
 
@@ -472,54 +477,193 @@ namespace computed_function {
     find::operator()(t_parameter_list parameters) {
         t_tscalar rval;
         rval.clear();
-        rval.m_type = DTYPE_BOOL;
+        rval.m_type = DTYPE_STR;
 
         // Parameters already validated for number and type
-        t_scalar_view _str(parameters[0]);
-        t_scalar_view _search_str(parameters[1]);
-        t_vector_view output_vector(parameters[2]);
+        t_scalar_view str_view(parameters[0]);
+        t_string_view pattern_view(parameters[1]);
 
-        t_tscalar str_scalar = _str();
-        t_tscalar search_str_scalar = _search_str();
+        t_tscalar str = str_view();
+        std::string match_pattern
+            = std::string(pattern_view.begin(), pattern_view.end());
 
-        // Type check - only allow strings and input vector of size > 0
-        if ((str_scalar.get_dtype() != DTYPE_STR
-                || str_scalar.m_status == STATUS_CLEAR)
-            || (search_str_scalar.get_dtype() != DTYPE_STR
-                || search_str_scalar.m_status == STATUS_CLEAR)
-            || output_vector.size() < 2) {
+        // Type check - only allow strings and non-empty patterns
+        if (str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR || match_pattern.size() == 0) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
 
-        // Inside actual execution, break if the value is null
-        if (!str_scalar.is_valid() || !search_str_scalar.is_valid())
+        std::shared_ptr<RE2> compiled_pattern;
+        
+        // Check the pattern to see if it's valid
+        if (m_pattern_map == nullptr || m_pattern_map->count(match_pattern) == 0) {
+            compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
+
+            // Return invalid value if the pattern does not compile - this will
+            // trigger an invalid type check error.
+            if (!compiled_pattern->ok()) {
+                rval.m_status = STATUS_CLEAR;
+                return rval;
+            }
+
+            // Insert pattern into the map if it compiles
+            if (m_pattern_map != nullptr) {
+                m_pattern_map->insert({match_pattern, compiled_pattern});
+            }
+        }
+
+        if (!str.is_valid() || m_pattern_map == nullptr || m_expression_vocab == nullptr)
             return rval;
 
-        // const std::string& str = str_scalar.to_string();
-        // boost::regex pattern(search_str_scalar.to_string());
-        // boost::match_results<std::string::const_iterator> results;
+        const std::string& search_str = str.to_string();
 
-        // bool found
-        //     = boost::regex_search(str, results, pattern, boost::match_default);
+        // Store the returned match into a StringPiece, which has a data()
+        // ptr into the original search string.
+        re2::StringPiece result;
+        compiled_pattern = m_pattern_map->operator[](match_pattern);
+        bool found = RE2::PartialMatch(search_str, *compiled_pattern, &result);
+        
+        // Return null if no match
+        if (!found) {
+            return rval;
+        }
 
-        // rval.set(found);
+        t_uindex interned = m_expression_vocab->get_interned(result.data());
+        rval.set(m_expression_vocab->unintern_c(interned));
+        return rval;
+    }
 
-        // if (!found || results.empty()) {
-        //     output_vector[0] = mknone();
-        //     output_vector[1] = mknone();
-        //     return rval;
-        // }
+    indexof::indexof(std::shared_ptr<t_regex_pattern_map> pattern_map)
+        : exprtk::igeneric_function<t_tscalar>("TS")
+        , m_pattern_map(pattern_map) {}
 
-        // double start = static_cast<double>(results.position());
-        // double end = static_cast<double>(start + results.length() - 1);
+    indexof::~indexof() {}
 
-        // if (end < 0)
-        //     end = 0;
+    t_tscalar
+    indexof::operator()(t_parameter_list parameters) {
+        t_tscalar rval;
+        rval.clear();
+        rval.m_type = DTYPE_FLOAT64;
 
-        // output_vector[0] = mktscalar(start);
-        // output_vector[1] = mktscalar(end);
+        // Parameters already validated
+        t_scalar_view str_view(parameters[0]);
+        t_string_view pattern_view(parameters[1]);
 
+        t_tscalar str = str_view();
+        std::string match_pattern
+            = std::string(pattern_view.begin(), pattern_view.end());
+
+        // Type-check: only operate on strings, and pattern must be > size 0
+        if (str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR || match_pattern.size() == 0) {
+            rval.m_status = STATUS_CLEAR;
+            return rval;
+        }
+
+        // Check that the pattern is valid
+        std::shared_ptr<RE2> compiled_pattern;
+
+        if (m_pattern_map == nullptr || m_pattern_map->count(match_pattern) == 0) {
+            compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
+
+            // Return invalid value if the pattern does not compile - this will
+            // trigger an invalid type check error.
+            if (!compiled_pattern->ok()) {
+                rval.m_status = STATUS_CLEAR;
+                return rval;
+            }
+
+            // Insert pattern into the map if it compiles
+            if (m_pattern_map != nullptr) {
+                m_pattern_map->insert({match_pattern, compiled_pattern});
+            }
+        }
+
+        if (!str.is_valid() || m_pattern_map == nullptr)
+            return rval;
+
+        const std::string& match_string = str.to_string();
+        re2::StringPiece result;
+
+        // Get the pattern from the map and perform the match.
+        compiled_pattern = m_pattern_map->operator[](match_pattern);
+        bool found = RE2::PartialMatch(match_string, *compiled_pattern, &result);
+
+        if (!found || result.data() == nullptr || result.empty()) {
+            return rval;
+        }
+
+        // guaranteed to operate on a valid string and a matched result
+        double start_idx = static_cast<double>(result.data() - match_string.data());
+        rval.set(start_idx >= 0 ? start_idx : 0);
+
+        return rval;
+    }
+
+    substring::substring(
+        std::shared_ptr<t_vocab> expression_vocab)
+        : m_expression_vocab(expression_vocab) {}
+
+    substring::~substring() {}
+
+    t_tscalar
+    substring::operator()(t_parameter_list parameters) {
+        t_tscalar rval;
+        rval.clear();
+        rval.m_type = DTYPE_STR;
+
+        if (parameters.size() != 2 && parameters.size() != 3) {
+            rval.m_status = STATUS_CLEAR;
+            return rval;
+        }
+
+        // Parameters already validated for number and type
+        t_scalar_view str_view(parameters[0]);
+        t_scalar_view start_idx_view(parameters[1]);
+
+        t_tscalar str = str_view();
+        t_tscalar sidx = start_idx_view();
+
+        // handle both user-provided and default end idx
+        t_tscalar eidx;
+        eidx.clear();
+        eidx.m_type = DTYPE_FLOAT64;
+
+        if (parameters.size() == 3) {
+            t_scalar_view end_idx_view(parameters[2]);
+            eidx = end_idx_view();
+        }
+
+        // Type check - only allow strings and non-empty patterns
+        if ((str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR) ||
+            (!sidx.is_numeric() || sidx.m_status == STATUS_CLEAR) ||
+            (!eidx.is_numeric()|| eidx.m_status == STATUS_CLEAR)) {
+            rval.m_status = STATUS_CLEAR;
+            return rval;
+        }
+
+        if (!str.is_valid() || m_expression_vocab == nullptr)
+            return rval;
+
+        const std::string& search_str = str.to_string();
+        std::size_t string_length = search_str.length();
+        std::size_t start_idx = sidx.to_double();
+
+        // std::string::substr(sidx, npos) => from sidx to end of string
+        std::size_t end_idx = std::string::npos;
+
+        if (parameters.size() == 3) {
+            end_idx = eidx.to_double();
+        }
+    
+        if (end_idx < start_idx ||
+            start_idx < 0 ||
+            start_idx > string_length ||
+            (end_idx != std::string::npos && end_idx >= string_length)) {
+            return rval;
+        }
+
+        t_uindex interned = m_expression_vocab->get_interned(search_str.substr(start_idx, end_idx));
+        rval.set(m_expression_vocab->unintern_c(interned));
         return rval;
     }
 

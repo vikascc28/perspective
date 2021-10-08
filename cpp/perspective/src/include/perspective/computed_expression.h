@@ -144,7 +144,9 @@ public:
     static computed_function::lower LOWER_VALIDATOR_FN;
     static computed_function::length LENGTH_VALIDATOR_FN;
     static computed_function::match MATCH_VALIDATOR_FN;
-    static computed_function::find FIND_FN;
+    static computed_function::find FIND_VALIDATOR_FN;
+    static computed_function::indexof INDEXOF_VALIDATOR_FN;
+    static computed_function::substring SUBSTRING_VALIDATOR_FN;
 
     // Numeric functions
     static computed_function::percent_of PERCENT_OF_FN;

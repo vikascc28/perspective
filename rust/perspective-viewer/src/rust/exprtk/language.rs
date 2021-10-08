@@ -53,6 +53,10 @@ thread_local! {
                 open: "[",
                 close: "]"
             },
+            AutoClosingPairs {
+                open: "{",
+                close: "}"
+            },
         ]
     };
 
@@ -399,14 +403,21 @@ thread_local! {
                 kind: 1,
                 insert_text: "match(${1:string}, ${2:regex})".to_owned(),
                 insert_text_rules: 4,
-                documentation: "Returns True if the entire string matches regex, and False otherwise.".to_owned(),
+                documentation: "Returns True if any part of string matches regex, and False otherwise.".to_owned(),
             },
             CompletionItemSuggestion {
                 label: "find".to_owned(),
                 kind: 1,
-                insert_text: "find(${1:string}, ${2:regex}, ${3:results_vector})".to_owned(),
+                insert_text: "find(${1:string}, ${2:regex})".to_owned(),
                 insert_text_rules: 4,
-                documentation: "Finds the start and end indices of a substring matching regex, and stores the indices in results_vector. Returns True if a result is found, and False otherwise.".to_owned(),
+                documentation: "Returns the first substring of the capturing group specified in regex, or null if there are no matches or no capture groups.".to_owned(),
+            },
+            CompletionItemSuggestion {
+                label: "indexof".to_owned(),
+                kind: 1,
+                insert_text: "indexof(${1:string}, ${2:regex})".to_owned(),
+                insert_text_rules: 4,
+                documentation: "Returns start index of the match of the first capturing group specified in regex, or null if there are no matches or no capture groups.".to_owned(),
             },
             CompletionItemSuggestion {
                 label: "month_of_year".to_owned(),

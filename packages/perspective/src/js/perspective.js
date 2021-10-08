@@ -1526,12 +1526,17 @@ export default function (Module) {
             // way of handling it.
             // TODO I concur  -- texodus
             parsed_expression_string = parsed_expression_string.replace(
-                /(bucket|match|find)\(.*?,\s*(intern\(\'(.+)\'\))\s*\)/g,
+                /(bucket|match|find|indexof)\(.*?,\s*(intern\(\'(.+)\'\)).*\)/g,
                 (match, _, intern_fn, value) => {
-                    return `${match.substr(
+                    // Takes a string of the form find(x, intern('y'), z)
+                    // and removes intern() to create find(x, 'y', z)
+                    const intern_idx = match.indexOf(intern_fn);
+                    return `${match.substring(
                         0,
-                        match.indexOf(intern_fn)
-                    )}'${value}')`;
+                        intern_idx
+                    )}'${value}'${match.substring(
+                        intern_idx + intern_fn.length
+                    )}`;
                 }
             );
 

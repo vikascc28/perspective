@@ -39,11 +39,11 @@ namespace computed_function {
 
 
 // A function that uses `t_regex_pattern_map` to cache repeated invocations
-// of boost::regex over a column. The `t_regex_pattern_map` is passed in
+// of a parsed RE2 regex over a column. The `t_regex_pattern_map` is passed in
 // from the `t_computed_expression` object, so each expression that is created
 // has its own map. In benchmarks, this leads to a sustained 40-50% improvement
 // in the performance of regex functions as the map is initialized and the
-// boost::regex object cached inside the first call to compute(), and all
+// regex object cached inside the first call to precompute(), and all
 // subsequent calls will use the cached object instead of initializing a new
 // boost::regex.
 #define REGEX_FUNCTION_HEADER(NAME)                                            \
@@ -54,6 +54,16 @@ namespace computed_function {
         std::shared_ptr<t_regex_pattern_map> m_pattern_map;                    \
     };
 
+// A regex function that returns a string stored in the expression vocab.
+#define REGEX_STRING_FUNCTION_HEADER(NAME)                                     \
+    struct NAME : public exprtk::igeneric_function<t_tscalar> {                \
+        NAME(std::shared_ptr<t_vocab> expression_vocab,                        \
+            std::shared_ptr<t_regex_pattern_map> pattern_map);                 \
+        ~NAME();                                                               \
+        t_tscalar operator()(t_parameter_list parameters);                     \
+        std::shared_ptr<t_vocab> m_expression_vocab;                           \
+        std::shared_ptr<t_regex_pattern_map> m_pattern_map;                    \
+    };
 
 #define STRING_FUNCTION_HEADER(NAME)                                           \
     struct NAME : public exprtk::igeneric_function<t_tscalar> {                \
@@ -82,14 +92,40 @@ namespace computed_function {
 
     STRING_FUNCTION_HEADER(search)
 
-    // split(string, substring, output_vector) - writes results into
-    // output_vector which can be accessed in the expression, but not returned
-    // into the column. calling split() returns a boolean stating whether the
-    // operation succeeded.
-    STRING_FUNCTION_HEADER(split)
+    /**
+     * @brief match(string, pattern) => True if the string or a substring
+     * matches pattern, and False otherwise.
+     */
+    REGEX_FUNCTION_HEADER(match)
 
-    // substr(string, start_idx, end_idx)
-    STRING_FUNCTION_HEADER(substr)
+    /**
+     * @brief find(string, pattern) => the first string match, partial or full,
+     * inside string for pattern, or null if the string does not match the
+     * pattern at all.
+     */
+    REGEX_STRING_FUNCTION_HEADER(find)
+
+    /**
+     * @brief indexof(string, pattern) => the start index of the first match,
+     * partial or full, inside string for pattern, or null if the string
+     * does not match the pattern at all.
+     */
+    REGEX_FUNCTION_HEADER(indexof)
+
+    /**
+     * @brief substr(string, start_idx, end_idx) => the substring of string
+     * at start_idx (inclusive) and end_idx (exclusive). If end_idx is not
+     * provided, defaults to string.length(). Equivalent to the string slice
+     * operator (str[bidx:eidx]) in Python. If bidx > eidx, returns null.
+     */
+    STRING_FUNCTION_HEADER(substring)
+
+    /**
+     * @brief replace(string, pattern, replace_str) => string with all matches
+     * of pattern replaced with replace_str, or the original string without
+     * any replacements if the string does not match pattern.
+     */
+    REGEX_STRING_FUNCTION_HEADER(replace)
 
     /**
      * @brief Given a string column and 1...n string parameters, generate a
@@ -122,25 +158,6 @@ namespace computed_function {
         ~NAME();                                                               \
         t_tscalar operator()(t_parameter_list parameters);                     \
     };
-
-    /**
-     * @brief match(string, regex) => True if the entirety of the string
-     * matches regex, and False otherwise. Does not need a vocab as it
-     * does not write a string to the output column.
-     */
-    REGEX_FUNCTION_HEADER(match)
-
-    /**
-     * @brief find(string, regex, vector) => True if any substring of string
-     * matches regex, False otherwise. A vector of size 2 or greater MUST be
-     * passed into the function in order to store the results.
-     *
-     * Usage:
-     *
-     * var x[2]; // vector to hold results
-     * find("column", "abc", x) ? x[0] : null;
-     */
-    FUNCTION_HEADER(find)
 
     /**
      * @brief Return the hour of the day the date/datetime belongs to.
