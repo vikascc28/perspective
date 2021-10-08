@@ -14,7 +14,7 @@ from .libbinding import t_dtype
 ALIAS_REGEX = re.compile(r"//(.+)\n")
 EXPRESSION_COLUMN_NAME_REGEX = re.compile(r"\"(.*?[^\\])\"")
 STRING_LITERAL_REGEX = re.compile(r"'(.*?[^\\])'")
-FUNCTION_LITERAL_REGEX = re.compile(r"(bucket|match|find)\(.*?,\s*(intern\(\'(.+)\'\))\s*\)")
+FUNCTION_LITERAL_REGEX = re.compile(r"(bucket|match|find)\(.*?,\s*(intern\(\'(.+)\'\)).*\)")
 BOOLEAN_LITERAL_REGEX = re.compile(r"([a-zA-Z_]+[a-zA-Z0-9_]*)")
 
 
@@ -126,7 +126,7 @@ def _replace_expression_column_name(
     return column_name_map[column_name]
 
 
-def _replace_bucket_unit(match_obj):
+def _replace_interned_param(match_obj):
     """Replace the intern('unit') in `bucket()` with just the string
     literal, because the unit determines the return type of the column and the
     function would not be able to validate a unit if it was interned."""
@@ -134,6 +134,7 @@ def _replace_bucket_unit(match_obj):
     interned = match_obj.group(1)
     unit = match_obj.group(2)
 
+    # TODO fix
     # from "bucket(col, intern('unit'))" to "bucket(col, 'unit')"
     return "{0}'{1}')".format(full[0 : full.index(interned)], unit)
 
@@ -200,7 +201,7 @@ def _parse_expression_strings(expressions):
         )
 
         # remove the `intern()` in bucket and regex fn - TODO: this is messy
-        parsed = re.sub(FUNCTION_LITERAL_REGEX, _replace_bucket_unit, parsed)
+        parsed = re.sub(FUNCTION_LITERAL_REGEX, _replace_interned_param, parsed)
 
         validated = [alias, expression, parsed, column_id_map]
 

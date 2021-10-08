@@ -895,6 +895,48 @@ module.exports = (perspective) => {
             await table.delete();
         });
 
+        it("Match string and null with regex", async () => {
+            const table = await perspective.table({
+                a: ["ABC", "abc", null, "AbC", "12345"],
+            });
+
+            const expressions = [
+                `match("a", '.*')`,
+                `match("a", '[aAbBcC]{3}')`,
+                `match("a", '[0-9]{5}')`,
+            ];
+
+            const view = await table.view({
+                expressions,
+            });
+
+            const schema = await view.expression_schema();
+
+            for (const expr of expressions) {
+                expect(schema[expr]).toEqual("boolean");
+            }
+
+            const results = await view.to_columns();
+            expect(results[expressions[0]]).toEqual([
+                true,
+                true,
+                null,
+                true,
+                true,
+            ]);
+            expect(results[expressions[1]]).toEqual(results[expressions[0]]);
+            expect(results[expressions[2]]).toEqual([
+                false,
+                false,
+                null,
+                false,
+                true,
+            ]);
+
+            await view.delete();
+            await table.delete();
+        });
+
         it("Find with string", async () => {
             const table = await perspective.table({
                 a: ["ABC", "DEF", "cbA", "HIjK", "lMNoP"],
