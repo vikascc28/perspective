@@ -459,7 +459,7 @@ namespace computed_function {
 
         // Get the pattern from the map and perform the match.
         compiled_pattern = m_pattern_map->operator[](match_pattern);
-        rval.set(RE2::PartialMatch(match_string, *compiled_pattern));
+        rval.set(RE2::FullMatch(match_string, *compiled_pattern));
 
         return rval;
     }
@@ -499,9 +499,11 @@ namespace computed_function {
         if (m_pattern_map == nullptr || m_pattern_map->count(match_pattern) == 0) {
             compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
 
-            // Return invalid value if the pattern does not compile - this will
-            // trigger an invalid type check error.
-            if (!compiled_pattern->ok()) {
+            // RE2 does not return the full match by default; it only returns
+            // a result if there is a capturing group. If the user does not
+            // include a capture group in their regex, return an error.
+            // TODO: augment this error with a better message
+            if (!compiled_pattern->ok() || compiled_pattern->NumberOfCapturingGroups() < 1) {
                 rval.m_status = STATUS_CLEAR;
                 return rval;
             }
@@ -565,9 +567,11 @@ namespace computed_function {
         if (m_pattern_map == nullptr || m_pattern_map->count(match_pattern) == 0) {
             compiled_pattern = std::make_shared<RE2>(match_pattern, RE2::Quiet);
 
-            // Return invalid value if the pattern does not compile - this will
-            // trigger an invalid type check error.
-            if (!compiled_pattern->ok()) {
+            // RE2 does not return the full match by default; it only returns
+            // a result if there is a capturing group. If the user does not
+            // include a capture group in their regex, return an error.
+            // TODO: augment this error with a better message
+            if (!compiled_pattern->ok() || compiled_pattern->NumberOfCapturingGroups() < 1) {
                 rval.m_status = STATUS_CLEAR;
                 return rval;
             }
