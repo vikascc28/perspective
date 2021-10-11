@@ -403,7 +403,7 @@ thread_local! {
                 kind: 1,
                 insert_text: "match(${1:string}, ${2:regex})".to_owned(),
                 insert_text_rules: 4,
-                documentation: "Returns True if any part of string matches regex, and False otherwise.".to_owned(),
+                documentation: "Returns True if the entire string matches regex, and False otherwise.".to_owned(),
             },
             CompletionItemSuggestion {
                 label: "find".to_owned(),
@@ -418,6 +418,13 @@ thread_local! {
                 insert_text: "indexof(${1:string}, ${2:regex})".to_owned(),
                 insert_text_rules: 4,
                 documentation: "Returns start index of the match of the first capturing group specified in regex, or null if there are no matches or no capture groups.".to_owned(),
+            },
+            CompletionItemSuggestion {
+                label: "substring".to_owned(),
+                kind: 1,
+                insert_text: "substring(${1:string}, ${2:start_idx}, ${3:end_idx})".to_owned(),
+                insert_text_rules: 4,
+                documentation: "Returns the substring of string from start_idx to end_idx. If end_idx is not provided, the substring is returned to the end of the string. Null is returned for invalid strings and invalid start/end indices.".to_owned(),
             },
             CompletionItemSuggestion {
                 label: "month_of_year".to_owned(),

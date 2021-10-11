@@ -94,7 +94,7 @@ function calc_binary(operator, left, right) {
 function validate_unary_operations(output, expressions, operator) {
     for (const expr of expressions) {
         const output_col = output[expr];
-        const input = expr.substring(2, expr.length - 3);
+        const input = expr.substr(2, expr.length - 3);
         expect({
             expr,
             result: output_col,
@@ -114,8 +114,8 @@ function validate_binary_operations(output, expressions, operator) {
     for (const expr of expressions) {
         const output_col = output[expr];
         const inputs = expr.split(` ${operator} `);
-        const left = inputs[0].substring(1, inputs[0].length - 2);
-        const right = inputs[1].substring(1, inputs[1].length - 2);
+        const left = inputs[0].substr(1, inputs[0].length - 2);
+        const right = inputs[1].substr(1, inputs[1].length - 2);
         console.error(left, right, output[left], output[right]);
         expect({
             expr,
@@ -311,14 +311,8 @@ module.exports = (perspective) => {
                     for (const expr of expressions) {
                         const output_col = result[expr];
                         const inputs = expr.split(` == `);
-                        const left = inputs[0].substring(
-                            1,
-                            inputs[0].length - 2
-                        );
-                        const right = inputs[1].substring(
-                            1,
-                            inputs[1].length - 2
-                        );
+                        const left = inputs[0].substr(1, inputs[0].length - 2);
+                        const right = inputs[1].substr(1, inputs[1].length - 2);
                         expect(output_col).toEqual(
                             result[left].map(
                                 (v, idx) => v == result[right][idx]
@@ -353,14 +347,8 @@ module.exports = (perspective) => {
                     for (const expr of expressions) {
                         const output_col = result[expr];
                         const inputs = expr.split(` != `);
-                        const left = inputs[0].substring(
-                            1,
-                            inputs[0].length - 2
-                        );
-                        const right = inputs[1].substring(
-                            1,
-                            inputs[1].length - 2
-                        );
+                        const left = inputs[0].substr(1, inputs[0].length - 2);
+                        const right = inputs[1].substr(1, inputs[1].length - 2);
                         expect(output_col).toEqual(
                             result[left].map(
                                 (v, idx) => v != result[right][idx]
@@ -395,14 +383,8 @@ module.exports = (perspective) => {
                     for (const expr of expressions) {
                         const output_col = result[expr];
                         const inputs = expr.split(` > `);
-                        const left = inputs[0].substring(
-                            1,
-                            inputs[0].length - 2
-                        );
-                        const right = inputs[1].substring(
-                            1,
-                            inputs[1].length - 2
-                        );
+                        const left = inputs[0].substr(1, inputs[0].length - 2);
+                        const right = inputs[1].substr(1, inputs[1].length - 2);
                         expect(output_col).toEqual(
                             result[left].map((v, idx) => v > result[right][idx])
                         );
@@ -435,14 +417,8 @@ module.exports = (perspective) => {
                     for (const expr of expressions) {
                         const output_col = result[expr];
                         const inputs = expr.split(` < `);
-                        const left = inputs[0].substring(
-                            1,
-                            inputs[0].length - 2
-                        );
-                        const right = inputs[1].substring(
-                            1,
-                            inputs[1].length - 2
-                        );
+                        const left = inputs[0].substr(1, inputs[0].length - 2);
+                        const right = inputs[1].substr(1, inputs[1].length - 2);
                         expect(output_col).toEqual(
                             result[left].map((v, idx) => v < result[right][idx])
                         );
@@ -475,14 +451,8 @@ module.exports = (perspective) => {
                     for (const expr of expressions) {
                         const output_col = result[expr];
                         const inputs = expr.split(` >= `);
-                        const left = inputs[0].substring(
-                            1,
-                            inputs[0].length - 2
-                        );
-                        const right = inputs[1].substring(
-                            1,
-                            inputs[1].length - 2
-                        );
+                        const left = inputs[0].substr(1, inputs[0].length - 2);
+                        const right = inputs[1].substr(1, inputs[1].length - 2);
                         expect(output_col).toEqual(
                             result[left].map(
                                 (v, idx) => v >= result[right][idx]
@@ -517,14 +487,8 @@ module.exports = (perspective) => {
                     for (const expr of expressions) {
                         const output_col = result[expr];
                         const inputs = expr.split(` <= `);
-                        const left = inputs[0].substring(
-                            1,
-                            inputs[0].length - 2
-                        );
-                        const right = inputs[1].substring(
-                            1,
-                            inputs[1].length - 2
-                        );
+                        const left = inputs[0].substr(1, inputs[0].length - 2);
+                        const right = inputs[1].substr(1, inputs[1].length - 2);
                         expect(output_col).toEqual(
                             result[left].map(
                                 (v, idx) => v <= result[right][idx]
