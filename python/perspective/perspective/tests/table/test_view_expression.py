@@ -154,6 +154,16 @@ class TestViewExpression(object):
         }
         assert view.expression_schema() == {"computed": float}
 
+    def test_view_expression_string_literal_var(self):
+        table = Table({"a": [1, 2, 3]})
+
+        for _ in range(10):
+            view = table.view(expressions=["var x := 'Eabcdefghijklmn'; var y := '0123456789'; concat(x, y)"])
+            assert view.to_columns() == {
+                "a": [1, 2, 3],
+                "var x := 'Eabcdefghijklmn'; var y := '0123456789'; concat(x, y)": ["Eabcdefghijklmn0123456789", "Eabcdefghijklmn0123456789", "Eabcdefghijklmn0123456789"]
+            }
+
     def test_view_streaming_expression(self):
         def data():
             return [{"a": random()} for _ in range(50)]
