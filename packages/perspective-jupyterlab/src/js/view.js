@@ -164,66 +164,108 @@ export class PerspectiveView extends DOMWidgetView {
             }
             this._pending_port_id = undefined;
             this._pending_binary = undefined;
-            return;
-        }
-
-        if (msg.type === "table") {
-            // Load the table/data by the name in the msg.
-            this._handle_load_message(msg);
         } else {
-            const cmd = msg.data["cmd"];
-            console.log(msg);
+            console.log("INSIDE BLOCK");
+            if (msg["type"] === "viewer_method") {
+                const method = msg["method"];
+                console.log("inside", method);
 
-            // Handle viewer-specific commands, which need to apply
-            // regardless of whether the widget is in client or server mode.
-            if (cmd === "save") {
+                switch (method) {
+                    case "save": {
+                        console.log("saving");
+                        this.pWidget
+                            .save()
+                            .then((config) => {
+                                console.log(config);
+                                // Send response back to the client
+                                this.perspective_client.send({
+                                    id: msg["id"],
+                                    type: "viewer_method",
+                                    data: {
+                                        id: msg["id"],
+                                        data: config,
+                                    },
+                                });
+                            })
+                            .catch((err) => {
+                                console.log(err);
+                                // Send response back to the client
+                                this.perspective_client.send({
+                                    id: msg["id"],
+                                    type: "viewer_method",
+                                    data: {
+                                        id: msg["id"],
+                                        error: err,
+                                    },
+                                });
+                            });
+
+                        return;
+                    }
+                    default:
+                        break;
+                }
+
                 return;
-            } else if (cmd === "restore") {
-                const config = msg.data["data"];
-                this.pWidget.restore(config);
-            } else if (cmd === "reset") {
-                this.pWidget.reset();
-            } else if (cmd === "clear") {
-                this.pWidget.clear();
-            } else if (cmd === "delete") {
-                this.pWidget.delete();
+            }
+
+            if (msg.type === "table") {
+                // Load the table/data by the name in the msg.
+                this._handle_load_message(msg);
             } else {
-                // Otherwise, pass the Perspective engine command to the worker.
-                if (this.pWidget.client === true) {
-                    // In client mode, we need to handle update and replace
-                    // separately from the regular flow.
-                    if (cmd === "update") {
-                        this.pWidget._update(msg.data["data"]);
-                    } else if (cmd === "replace") {
-                        this.pWidget.replace(msg.data["data"]);
-                    }
+                const cmd = msg.data["cmd"];
+                console.log(msg);
+
+                // Handle viewer-specific commands, which need to apply
+                // regardless of whether the widget is in client or server mode.
+                if (cmd === "restore") {
+                    const config = msg.data["data"];
+                    this.pWidget.restore(config);
+                } else if (cmd === "reset") {
+                    this.pWidget.reset();
+                } else if (cmd === "clear") {
+                    this.pWidget.clear();
+                } else if (cmd === "delete") {
+                    this.pWidget.delete();
                 } else {
-                    // Make a deep copy of each message - widget views share the
-                    // same comm, so mutations on `msg` affect subsequent message
-                    // handlers.
-                    const message = JSON.parse(JSON.stringify(msg));
-                    delete message.type;
-                    if (typeof message.data === "string") {
-                        message.data = JSON.parse(message.data);
-                    }
-                    if (message.data["binary_length"]) {
-                        // If the `binary_length` flag is set, the worker expects
-                        // the next message to be a transferable object. This sets
-                        // the `_pending_binary` flag, which triggers a special
-                        // handler for the ArrayBuffer containing binary data.
-                        this._pending_binary = message.data.id;
-                        // Check whether the message also contains a `port_id`,
-                        // indicating that we are in an `on_update` callback and
-                        // the pending binary needs to be joined with the port_id
-                        // for on_update handlers to work properly.
-                        if (
-                            message.data.data &&
-                            message.data.data.port_id !== undefined
-                        ) {
-                            this._pending_port_id = message.data.data.port_id;
+                    // Otherwise, pass the Perspective engine command to the worker.
+                    if (this.pWidget.client === true) {
+                        // In client mode, we need to handle update and replace
+                        // separately from the regular flow.
+                        if (cmd === "update") {
+                            this.pWidget._update(msg.data["data"]);
+                        } else if (cmd === "replace") {
+                            this.pWidget.replace(msg.data["data"]);
                         }
                     } else {
-                        this.perspective_client._handle(message);
+                        // Make a deep copy of each message - widget views share the
+                        // same comm, so mutations on `msg` affect subsequent message
+                        // handlers.
+                        const message = JSON.parse(JSON.stringify(msg));
+                        delete message.type;
+                        if (typeof message.data === "string") {
+                            message.data = JSON.parse(message.data);
+                        }
+                        if (message.data["binary_length"]) {
+                            // If the `binary_length` flag is set, the worker expects
+                            // the next message to be a transferable object. This sets
+                            // the `_pending_binary` flag, which triggers a special
+                            // handler for the ArrayBuffer containing binary data.
+                            this._pending_binary = message.data.id;
+                            // Check whether the message also contains a `port_id`,
+                            // indicating that we are in an `on_update` callback and
+                            // the pending binary needs to be joined with the port_id
+                            // for on_update handlers to work properly.
+                            if (
+                                message.data.data &&
+                                message.data.data.port_id !== undefined
+                            ) {
+                                this._pending_port_id =
+                                    message.data.data.port_id;
+                            }
+                        } else {
+                            this.perspective_client._handle(message);
+                        }
                     }
                 }
             }

@@ -71,12 +71,17 @@ export class PerspectiveJupyterClient extends Client {
             // Send the second message with buffers.
             this.view.send({}, buffers);
         } else {
-            // Send the message over the Jupyter comm.
-            this.view.send({
-                id: msg.id,
-                type: "cmd",
-                data: JSON.stringify(msg),
-            });
+            if (msg.type === "viewer_method") {
+                console.log(msg);
+                this.view.send(msg);
+            } else {
+                // Send the message over the Jupyter comm.
+                this.view.send({
+                    id: msg.id,
+                    type: "cmd",
+                    data: JSON.stringify(msg),
+                });
+            }
         }
     }
 }

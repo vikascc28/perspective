@@ -6,6 +6,7 @@
 # the Apache License 2.0.  The full license can be found in the LICENSE file.
 #
 
+import logging
 from random import random
 
 from ..core.exception import PerspectiveError
@@ -52,6 +53,7 @@ class PerspectiveClient(object):
             return
 
         handler = self._handlers.get(msg["data"].get("id"))
+        logging.warn("{}, {}".format(handler, self._handlers))
 
         if handler:
             future = handler.get("future", None)
@@ -84,6 +86,7 @@ class PerspectiveClient(object):
                             PerspectiveTableProxy(self, msg["data"]["data"])
                         )
                     else:
+                        logging.warn("future setting result {}".format(msg))
                         future.set_result(msg["data"]["data"])
 
             if not keep_alive:

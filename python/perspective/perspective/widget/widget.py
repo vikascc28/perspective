@@ -5,7 +5,6 @@
 # This file is part of the Perspective library, distributed under the terms of
 # the Apache License 2.0.  The full license can be found in the LICENSE file.
 #
-
 import six
 import logging
 import numpy
@@ -24,6 +23,7 @@ from ..core._version import __version__
 from ..libpsp import is_libpsp
 
 from .widget_traitlets import PerspectiveTraitlets
+from .widget_client import PerspectiveWidgetAsyncClient
 
 if is_libpsp():
     from ..libpsp import Table, View, PerspectiveManager
@@ -149,6 +149,8 @@ class PerspectiveWidget(DOMWidget, PerspectiveTraitlets):
         """
         # Initialize the DOMWidget
         super(PerspectiveWidget, self).__init__(**kwargs)
+
+        self.async_client = PerspectiveWidgetAsyncClient(self.send)
 
         # Trigger special flow when receiving an ArrayBuffer/binary
         self._pending_binary = None
@@ -377,8 +379,39 @@ class PerspectiveWidget(DOMWidget, PerspectiveTraitlets):
 
     def save(self):
         """Save the widget's current state to a dictionary by querying the
-        widget front-end through the Jupyter comm."""
-        return {}
+        widget front-end through the Jupyter comm.
+
+        FIXME: cannot await psp.save() in the same cell but can get result
+        back without await, or with await in later cell
+
+        "If the process the future represents has not yet finished then the
+        current Task is paused until the process has finished."
+
+        so that means:
+
+        * We await the future that is waiting for handle_message to resolve
+        * handle_message is paused because we are awaiting the future
+        * the future is never resolved, but everything else is paused
+        * deadlock!
+
+        So why does not awaiting the future's execution initially and then
+        awaiting it/calling result() work? Because handle_message has already
+        been called and has handled the message coming back, which resolves
+        the future.
+
+        How do we get past it? We either execute as a task and try to get the
+        future's result out from there, or we call save synchronously and
+        then just hope for the result to occur, which seems bad.
+
+        This works:
+            loop = asyncio.get_event_loop() # will always return jlab loop
+            task = loop.create_task(widget.save())
+            task.result() # the saved config from the viewer
+
+        This does not:
+            await widget.save() # deadlocks
+        """
+        return self.async_client.async_queue_widget("save")
 
     def restore(self, **kwargs):
         """Set the widget's view state using config."""
@@ -439,6 +472,7 @@ class PerspectiveWidget(DOMWidget, PerspectiveTraitlets):
                 de-serialized by ipywidgets.
             buffers : optional arraybuffers from the front-end, if any.
         """
+        logging.error("HANDLE MESSAGE CALLED")
         if self._pending_binary:
             msg = self._pending_binary
 
@@ -456,7 +490,13 @@ class PerspectiveWidget(DOMWidget, PerspectiveTraitlets):
             self._pending_binary = None
             return
 
-        if content["type"] == "cmd":
+        logging.warn("handling: {}".format(content))
+
+        if content["type"] == "viewer_method":
+            logging.warn("handlingviewercmd: {}".format(content))
+            # parsed_msg = json.loads(content["data"])
+            self.async_client._handle(content)
+        elif content["type"] == "cmd":
             parsed = json.loads(content["data"])
 
             if parsed["cmd"] == "init":
