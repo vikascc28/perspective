@@ -548,8 +548,8 @@ impl<'a> ColumnsIterator<'a> {
         let mut filtered = self
             .expression_columns
             .iter()
-            .filter(move |name| {
-                !self.config.columns.contains(&Some(name.to_string()))
+            .filter(|name| {
+                !self.config.columns.iter().any(|x| x.as_ref() == Some(name))
                     && self
                         .is_dragover_column
                         .as_ref()

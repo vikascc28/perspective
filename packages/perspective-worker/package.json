@@ -20,10 +20,7 @@
     ],
     "types": "index.d.ts",
     "scripts": {
-        "build:babel:esm": "babel src/js --source-maps --out-dir dist/esm",
-        "build:babel:cjs": "BABEL_MODULE=auto babel dist/esm --source-maps --out-dir dist/cjs",
-        "build:internal": "npm-pack-here -t ../../cpp/perspective -d dist/esm -d dist/cjs --updateRelativeNodeModulesDirectory=false",
-        "build": "npm-run-all build:internal build:babel:* build:webpack:*",
+        "build": "cargo build --target wasm32-wasi && cp target/wasm32-wasi/debug/perspective.wasm .",
         "build:webpack:outline": "webpack --color --config src/config/perspective.config.js",
         "build:webpack:inline": "webpack --color --config src/config/perspective.inline.config.js",
         "docs": "npm-run-all docs:jsdoc docs:deploy",
