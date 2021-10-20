@@ -815,7 +815,7 @@ module.exports = (perspective) => {
             await table.delete();
         });
 
-        it("Declare string var", async function () {
+        it.skip("Declare string var", async function () {
             const table = await perspective.table(
                 expressions_common.int_float_data
             );
@@ -845,7 +845,7 @@ module.exports = (perspective) => {
             await table.delete();
         });
 
-        it("Declare string var one long one short", async function () {
+        it.skip("Declare string var one long one short", async function () {
             const table = await perspective.table(
                 expressions_common.int_float_data
             );
@@ -871,7 +871,7 @@ module.exports = (perspective) => {
             await table.delete();
         });
 
-        it("Declare string var short", async function () {
+        it.skip("Declare string var short", async function () {
             const table = await perspective.table(
                 expressions_common.int_float_data
             );
@@ -888,7 +888,7 @@ module.exports = (perspective) => {
             await table.delete();
         });
 
-        it("Clear() and Declare string var", async function () {
+        it.skip("Clear() and Declare string var", async function () {
             const table = await perspective.table(
                 expressions_common.int_float_data
             );

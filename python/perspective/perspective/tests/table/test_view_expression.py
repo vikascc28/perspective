@@ -8,7 +8,7 @@
 
 from random import random, randint, choices
 from string import ascii_letters
-from pytest import raises
+from pytest import raises, mark
 from datetime import date, datetime
 from time import mktime
 from perspective import Table, PerspectiveCppError
@@ -157,6 +157,7 @@ class TestViewExpression(object):
         }
         assert view.expression_schema() == {"computed": float}
 
+    @mark.skip
     def test_view_expression_collide_local_var(self):
         """Make sure that strings declared under the same var name in
         different expressions do not collide."""
@@ -181,6 +182,7 @@ class TestViewExpression(object):
         assert result["computed"] == ["".join(strings[:4]) for _ in range(4)]
         assert result["computed2"] == ["".join(strings[4:]) for _ in range(4)]
 
+    @mark.skip
     def test_view_random_expressions(self):
         def make_expression():
             """Create a random expression with a few local string vars that
@@ -334,6 +336,7 @@ class TestViewExpression(object):
 
         assert view.expression_schema() == {"computed": float}
 
+    @mark.skip
     def test_view_expression_string_literal_var(self):
         table = Table({"a": [1, 2, 3]})
 
