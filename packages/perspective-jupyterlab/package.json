@@ -20,18 +20,18 @@
         "access": "public"
     },
     "scripts": {
-        "bench": "npm-run-all bench:build bench:run",
+        "bench": "yarn npm-run-all bench:build bench:run",
         "bench:build": "echo \"No Benchmarks\"",
         "bench:run": "echo \"No Benchmarks\"",
-        "clean:screenshots": "rimraf \"screenshots/**/*.@(failed|diff).png\"",
-        "test:build": "cpy \"test/html/*\" dist/umd && cpy \"test/csv/*\" dist/umd && cpy \"test/css/*\" dist/umd && webpack --color --config src/config/webpack.config.js",
-        "test:run": "jest --rootDir=. --config=test/config/jest.config.js --color --verbose",
-        "test:jupyter:build": "cpy \"test/html/*\" dist/umd && cpy \"test/arrow/*\" dist/umd && cpy \"test/css/*\" dist/umd",
+        "clean:screenshots": "yarn rimraf \"screenshots/**/*.@(failed|diff).png\"",
+        "test:build": "yarn cpy \"test/html/*\" dist/umd && yarn cpy \"test/csv/*\" dist/umd && yarn cpy \"test/css/*\" dist/umd && yarn webpack --color --config src/config/webpack.config.js",
+        "test:run": "yarn jest --rootDir=. --config=test/config/jest.config.js --color --verbose",
+        "test:jupyter:build": "yarn cpy \"test/html/*\" dist/umd && yarn cpy \"test/arrow/*\" dist/umd && yarn cpy \"test/css/*\" dist/umd",
         "test:jupyter:run": "__JUPYTERLAB_PORT__=6538 jest --rootDir=. --config=test/config/jupyter/jest.config.js --color --verbose",
-        "test": "npm-run-all test:build test:run",
-        "test:jupyter": "npm-run-all test:jupyter:build test:jupyter:run",
-        "build": "webpack --color --config src/config/plugin.config.js",
-        "clean": "rimraf dist",
+        "test": "yarn npm-run-all test:build test:run",
+        "test:jupyter": "yarn npm-run-all test:jupyter:build test:jupyter:run",
+        "build": "yarn webpack --color --config src/config/plugin.config.js",
+        "clean": "yarn rimraf dist",
         "version": "yarn build"
     },
     "dependencies": {
@@ -47,9 +47,13 @@
     "devDependencies": {
         "@finos/perspective-test": "^1.0.1",
         "@jupyter-widgets/base-manager": "^1.0.0-alpha.0",
+        "cpy-cli": "npm:^3.1.1",
         "identity-obj-proxy": "^3.0.0",
+        "jest": "npm:^25.1.0",
         "jest-transform-css": "^2.0.0",
-        "source-map-support": "^0.5.9"
+        "rimraf": "npm:3.0.2",
+        "source-map-support": "^0.5.9",
+        "webpack": "workspace:^"
     },
     "jupyterlab": {
         "extension": true

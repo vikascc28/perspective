@@ -9,7 +9,7 @@ const cwd = path.join(process.cwd(), "dist", env);
 delete process.env.NODE;
 
 try {
-    execSync(`mkdirp ${cwd}`, {stdio});
+    execSync(`yarn mkdirp ${cwd}`, {stdio});
     process.env.CLICOLOR_FORCE = 1;
     execSync(`emcmake cmake ${__dirname} -DCMAKE_BUILD_TYPE=${env}`, {
         cwd,
@@ -19,8 +19,8 @@ try {
         cwd,
         stdio,
     });
-    execSync(`cpy esm/**/* ../esm`, {cwd, stdio});
-    execSync(`cpy cjs/**/* ../cjs`, {cwd, stdio});
+    execSync(`yarn cpy esm/**/* ../esm`, {cwd, stdio});
+    execSync(`yarn cpy cjs/**/* ../cjs`, {cwd, stdio});
 } catch (e) {
     console.error(e);
     process.exit(1);

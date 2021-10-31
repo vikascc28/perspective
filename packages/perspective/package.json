@@ -20,19 +20,19 @@
     ],
     "types": "index.d.ts",
     "scripts": {
-        "build:babel:esm": "babel src/js --source-maps --out-dir dist/esm",
-        "build:babel:cjs": "BABEL_MODULE=auto babel dist/esm --source-maps --out-dir dist/cjs",
-        "build:internal": "npm-pack-here -t ../../cpp/perspective -d dist/esm -d dist/cjs --updateRelativeNodeModulesDirectory=false",
-        "build": "npm-run-all build:internal build:babel:* build:webpack:*",
-        "build:webpack:outline": "webpack --color --config src/config/perspective.config.js",
-        "build:webpack:inline": "webpack --color --config src/config/perspective.inline.config.js",
-        "docs": "npm-run-all docs:jsdoc docs:deploy",
-        "docs:jsdoc": "jsdoc2md src/js/perspective.js -p list --separators --no-gfm > README.md",
+        "build:babel:esm": "yarn babel src/js --source-maps --out-dir dist/esm",
+        "build:babel:cjs": "BABEL_MODULE=auto yarn babel dist/esm --source-maps --out-dir dist/cjs",
+        "build:internal": "yarn npm-pack-here -t ../../cpp/perspective -d dist/esm -d dist/cjs --updateRelativeNodeModulesDirectory=false",
+        "build": "yarn npm-run-all build:internal 'build:babel:*' 'build:webpack:*'",
+        "build:webpack:outline": "yarn webpack --color --config src/config/perspective.config.js",
+        "build:webpack:inline": "yarn webpack --color --config src/config/perspective.inline.config.js",
+        "docs": "yarn npm-run-all docs:jsdoc docs:deploy",
+        "docs:jsdoc": "yarn jsdoc2md src/js/perspective.js -p list --separators --no-gfm > README.md",
         "docs:deploy": "(echo \"---\nid: perspective\ntitle: perspective API\n---\n\n\"; cat README.md) > ../../docs/obj/perspective.md",
-        "test:run": "jest --color --ci --testPathIgnorePatterns='timezone'",
-        "test_timezone:run": "jest --color --ci --config=test/config/timezone/jest.config.js --rootDir=. timezone.spec.js",
-        "test": "npm-run-all test:run",
-        "clean": "rimraf dist"
+        "test:run": "yarn jest --color --ci --testPathIgnorePatterns='timezone'",
+        "test_timezone:run": "yarn jest --color --ci --config=test/config/timezone/jest.config.js --rootDir=. timezone.spec.js",
+        "test": "yarn npm-run-all test:run",
+        "clean": "yarn rimraf dist"
     },
     "jest": {
         "roots": [
@@ -62,10 +62,31 @@
         "ws": "^6.1.2"
     },
     "devDependencies": {
+        "@babel/cli": "npm:^7.8.4",
+        "@babel/core": "npm:^7.1.0",
         "@finos/perspective-cpp": "^1.0.1",
+        "arraybuffer-loader": "npm:^1.0.2",
+        "css-loader": "npm:^0.28.7",
+        "cssnano": "npm:^4.1.10",
+        "file-loader": "npm:^2.0.0",
+        "html-loader": "npm:^0.5.1",
+        "jest": "npm:^25.1.0",
         "jsverify": "^0.8.4",
+        "less": "npm:^3.9.0",
+        "less-loader": "npm:^7.2.1",
         "lodash": "^4.17.4",
         "moment": "^2.19.1",
-        "papaparse": "^5.2.0"
+        "npm-pack-here": "npm:^1.2.0",
+        "npm-run-all": "npm:^4.1.3",
+        "papaparse": "^5.2.0",
+        "postcss": "npm:^7.0.19",
+        "postcss-loader": "npm:^4.3.0",
+        "rimraf": "npm:3.0.2",
+        "source-map-loader": "npm:^0.2.4",
+        "string-replace-loader": "npm:^3.0.1",
+        "terser-webpack-plugin": "npm:^5.1.1",
+        "underscore": "npm:>=1.7.0",
+        "webpack": "workspace:^",
+        "worker-loader": "npm:^3.0.7"
     }
 }

@@ -81,6 +81,18 @@ const execute_return = async (cmd) => {
  * Public
  */
 
+exports.get_scope = function () {
+    const scope = process.env.PACKAGE
+        ? process.env.PACKAGE.startsWith("@")
+            ? process.env.PACKAGE.slice(2, process.env.PACKAGE.length - 1)
+                  .split("|")
+                  .map((x) => `--include @finos/${x}`)
+                  .join(" ")
+            : `--include @finos/${process.env.PACKAGE}`
+        : "";
+    return scope;
+};
+
 /**
  * Calls `path.join` on the result of splitting the input string by the default
  * path delimiter `/`, which allows writing simpler path statements that will

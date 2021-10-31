@@ -7,11 +7,12 @@
  *
  */
 
-const {execute, get_scope} = require("./script_utils.js");
+ const {execute} = require("./script_utils.js");
 
-try {
-    execute`yarn workspaces foreach -pt --no-private ${get_scope()} --interlaced run build`;
-} catch (e) {
-    console.log(e.message);
-    process.exit(1);
-}
+ try {
+     execute`yarn workspace ${process.argv[2]} run start`;
+ } catch (e) {
+     console.log(e.message);
+     process.exit(1);
+ }
+ 

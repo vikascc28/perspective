@@ -20,7 +20,7 @@
     "scripts": {
         "build": "echo 'No build'",
         "clean": "echo 'No clean'",
-        "prebench": "mkdirp build",
+        "prebench": "yarn mkdirp build",
         "bench": "node bench/versions.js"
     },
     "author": "",

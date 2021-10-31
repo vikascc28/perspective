@@ -10,10 +10,14 @@
         "dist/cjs/**/*"
     ],
     "scripts": {
-        "build": "node ../../scripts/run_emsdk.js node ./build.js",
-        "clean": "rimraf dist",
+        "build": "yarn node ../../scripts/run_emsdk.js node ./build.js",
+        "clean": "yarn rimraf dist",
         "test": ":",
         "test:run": ":",
         "test:build": ":"
+    },
+    "devDependencies": {
+        "cpy-cli": "npm:^3.1.1",
+        "mkdirp": "npm:0.x"
     }
 }

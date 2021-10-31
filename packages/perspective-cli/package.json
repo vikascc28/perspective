@@ -13,9 +13,9 @@
     ],
     "typings": "index.d.ts",
     "scripts": {
-        "prebuild": "mkdirp build",
-        "build": "babel src/js --source-maps --out-dir build && cpy \"src/html/*\" build/html",
-        "clean": "rimraf build"
+        "prebuild": "yarn mkdirp build",
+        "build": "yarn babel src/js --source-maps --out-dir build && yarn cpy \"src/html/*\" build/html",
+        "clean": "yarn rimraf build"
     },
     "repository": {
         "type": "git",
@@ -32,5 +32,9 @@
         "@finos/perspective-viewer-d3fc": "^1.0.1",
         "@finos/perspective-viewer-datagrid": "^1.0.1",
         "commander": "^2.19.0"
+    },
+    "devDependencies": {
+        "@babel/cli": "npm:^7.8.4",
+        "cpy-cli": "npm:^3.1.1"
     }
 }

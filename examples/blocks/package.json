@@ -4,9 +4,9 @@
     "version": "1.0.1",
     "description": "A collection of simple client-side Perspective examples for `http://bl.ocks.org`.",
     "scripts": {
-        "start": "mkdirp dist && node server.js",
-        "clean": "rimraf dist",
-        "dist": "node dist.js"
+        "start": "yarn mkdirp dist && yarn node server.js",
+        "clean": "yarn rimraf dist",
+        "dist": "yarn node dist.js"
     },
     "keywords": [],
     "license": "Apache-2.0",
@@ -16,5 +16,8 @@
         "@finos/perspective-viewer-d3fc": "^1.0.1",
         "@finos/perspective-viewer-datagrid": "^1.0.1",
         "superstore-arrow": "1.0.0"
+    },
+    "devDependencies": {
+        "mkdirp": "npm:0.x"
     }
 }

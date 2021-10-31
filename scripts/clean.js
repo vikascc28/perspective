@@ -7,7 +7,7 @@
  *
  */
 
-const {execute, clean} = require("./script_utils.js");
+const {execute, clean, get_scope} = require("./script_utils.js");
 
 const glob = require("glob");
 const minimatch = require("minimatch");
@@ -18,10 +18,10 @@ const IS_SCREENSHOTS = args.indexOf("--screenshots") !== -1;
 function clean_screenshots(scope) {
     if (args.indexOf("--all") !== -1) {
         try {
-            execute`lerna exec --scope="@finos/${scope}" -- yarn rimraf test/screenshots`;
+            execute`yarn workspaces foreach -pt --no-private ${get_scope()} run -T rimraf test/screenshots`;
         } catch (e) {}
     } else {
-        execute`lerna run clean:screenshots --scope="@finos/${scope}"`;
+        execute`yarn workspaces foreach -pt --no-private ${get_scope()} run clean:screenshots`;
     }
 }
 

@@ -6,7 +6,7 @@
     "scripts": {
         "start:server": "webpack serve --open",
         "start:client": "node server.js",
-        "start": "npm-run-all -p start:server start:client"
+        "start": "yarn npm-run-all -p start:server start:client"
     },
     "keywords": [],
     "license": "Apache-2.0",

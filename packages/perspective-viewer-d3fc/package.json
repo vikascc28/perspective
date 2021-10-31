@@ -23,21 +23,21 @@
         "babel.config.js"
     ],
     "scripts": {
-        "bench": "npm-run-all bench:build bench:run",
+        "bench": "yarn npm-run-all bench:build bench:run",
         "bench:build": "echo \"No Benchmarks\"",
         "bench:run": "echo \"No Benchmarks\"",
-        "prebuild": "mkdirp dist/esm",
-        "build:babel": "cpy \"src/**/*\" dist && babel src/js --source-maps --out-dir dist/esm",
-        "build:webpack:cjs": "webpack --color --config src/config/cjs.config.js",
-        "build:webpack:umd": "webpack --color --config src/config/umd.config.js",
-        "build:webpack": "npm-run-all build:webpack:cjs build:webpack:umd",
-        "build": "npm-run-all --silent build:babel build:webpack:cjs build:webpack:umd",
-        "test:build": "cpy \"test/html/*\" dist/umd",
-        "watch": "webpack --color --watch --config src/config/d3fc.watch.config.js",
-        "test:run": "jest --rootDir=. --config=../perspective-test/jest.config.js --color --noStackTrace 2>&1",
-        "test": "npm-run-all test:build test:run",
-        "clean": "rimraf dist",
-        "clean:screenshots": "rimraf \"test/screenshots/**/*.@(failed|diff).png\""
+        "prebuild": "yarn mkdirp dist/esm",
+        "build:babel": "yarn cpy \"src/**/*\" dist && yarn babel src/js --source-maps --out-dir dist/esm",
+        "build:webpack:cjs": "yarn webpack --color --config src/config/cjs.config.js",
+        "build:webpack:umd": "yarn webpack --color --config src/config/umd.config.js",
+        "build:webpack": "yarn npm-run-all build:webpack:cjs build:webpack:umd",
+        "build": "yarn npm-run-all --silent build:babel build:webpack:cjs build:webpack:umd",
+        "test:build": "yarn cpy \"test/html/*\" dist/umd",
+        "watch": "yarn webpack --color --watch --config src/config/d3fc.watch.config.js",
+        "test:run": "yarn jest --rootDir=. --config=../perspective-test/jest.config.js --color --noStackTrace 2>&1",
+        "test": "yarn npm-run-all test:build test:run",
+        "clean": "yarn rimraf dist",
+        "clean:screenshots": "yarn rimraf \"test/screenshots/**/*.@(failed|diff).png\""
     },
     "publishConfig": {
         "access": "public"
@@ -58,6 +58,13 @@
         "gradient-parser": "0.1.5"
     },
     "devDependencies": {
-        "@finos/perspective-test": "^1.0.1"
+        "@babel/cli": "npm:^7.8.4",
+        "@finos/perspective-test": "^1.0.1",
+        "cpy-cli": "npm:^3.1.1",
+        "jest": "npm:^25.1.0",
+        "npm-run-all": "npm:^4.1.3",
+        "rimraf": "npm:3.0.2",
+        "rollup": "npm:^2.38.5",
+        "webpack": "workspace:^"
     }
 }

@@ -21,9 +21,9 @@ function common({no_minify, inline} = {}) {
                     test: /\.less$/,
                     exclude: /node_modules\/(?!regular-table)/,
                     use: [
-                        {loader: "css-loader"},
+                        {loader: require.resolve("css-loader")},
                         {
-                            loader: "postcss-loader",
+                            loader: require.resolve("postcss-loader"),
                             options: {
                                 postcssOptions: {
                                     minimize: true,
@@ -35,20 +35,20 @@ function common({no_minify, inline} = {}) {
                                 },
                             },
                         },
-                        {loader: "less-loader"},
+                        {loader: require.resolve("less-loader")},
                     ],
                 },
                 {
                     test: /\.(html)$/,
                     use: {
-                        loader: "html-loader",
+                        loader: require.resolve("html-loader"),
                         options: {},
                     },
                 },
                 {
                     test: /\.js$/,
                     exclude: /node_modules\/(?!regular-table)/,
-                    loader: "source-map-loader",
+                    loader: require.resolve("source-map-loader"),
                 },
                 inline
                     ? undefined
@@ -71,16 +71,16 @@ function common({no_minify, inline} = {}) {
                     test: /\.(arrow)$/,
                     type: "javascript/auto",
                     use: {
-                        loader: "arraybuffer-loader",
+                        loader: require.resolve("arraybuffer-loader"),
                         options: {},
                     },
                 },
                 {
                     test: /\.css$/,
                     use: [
-                        {loader: "css-loader", options: {sourceMap: false}},
+                        {loader: require.resolve("css-loader"), options: {sourceMap: false}},
                         {
-                            loader: "postcss-loader",
+                            loader: require.resolve("postcss-loader"),
                             options: {
                                 sourceMap: false,
                                 postcssOptions: {
@@ -99,24 +99,24 @@ function common({no_minify, inline} = {}) {
                 },
                 {
                     test: /\.ttf$/,
-                    use: ["file-loader"],
+                    use: [require.resolve("file-loader")],
                 },
                 inline
                     ? {
                           test: /\.wasm$/,
                           type: "javascript/auto",
-                          loader: "arraybuffer-loader",
+                          loader: require.resolve("arraybuffer-loader"),
                       }
                     : {
                           test: /\.wasm$/,
                           type: "javascript/auto",
-                          loader: "file-loader",
+                          loader: require.resolve("file-loader"),
                           options: {name: "[name].[ext]"},
                       },
                 {
                     test: /perspective\.worker\.js$/,
                     type: "javascript/auto",
-                    loader: "worker-loader",
+                    loader: require.resolve("worker-loader"),
                     options: {
                         inline: "no-fallback",
                     },
@@ -124,7 +124,7 @@ function common({no_minify, inline} = {}) {
                 {
                     test: /editor\.worker/,
                     type: "javascript/auto",
-                    loader: "worker-loader",
+                    loader: require.resolve("worker-loader"),
                     options: inline
                         ? {
                               inline: "no-fallback",
