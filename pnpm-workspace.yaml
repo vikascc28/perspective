@@ -1,0 +1,7 @@
+packages:
+  - "rust/*"
+  - "packages/*"
+  - "examples/*"
+  - "docs"
+  - "cpp/perspective"
+  - "python/perspective"

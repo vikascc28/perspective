@@ -7,7 +7,7 @@
  *
  */
 
-const {execute} = require("./script_utils.js");
+const {execute, get_scope} = require("./script_utils.js");
 
 try {
     let scope =
@@ -15,7 +15,7 @@ try {
             ? `${process.env.PACKAGE}`
             : "*";
 
-    execute`lerna exec --scope="@finos/${scope}" -- yarn build`;
+    execute`pnpm run build ${get_scope()}`;
 } catch (e) {
     console.log(e.message);
     process.exit(1);
