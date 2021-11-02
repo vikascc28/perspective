@@ -144,6 +144,7 @@ Table::set_gnode(std::shared_ptr<t_gnode> gnode) {
 
 void
 Table::unregister_gnode(t_uindex id) {
+    __lsan_do_leak_check();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     m_pool->unregister_gnode(id);
 }

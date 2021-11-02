@@ -241,8 +241,8 @@ if (PSP_WASM_BUILD)
 			")
 	else()
 		set(OPT_FLAGS " \
-			-O3 \
-			-g0 \
+			-O0 \
+			-g3\
 			")
 
 		# TODO: -flto
@@ -442,6 +442,7 @@ endif()
 psp_build_dep("exprtk" "${PSP_CMAKE_MODULE_PATH}/exprtk.txt.in")
 #####################
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
 set(CMAKE_C_FLAGS " \
 	${CMAKE_C_FLAGS} \
 	${EXTENDED_FLAGS} \
@@ -581,6 +582,9 @@ if (PSP_WASM_BUILD)
 		-s USE_ES6_IMPORT_META=0 \
 		-s EXPORTED_FUNCTIONS=\"['_main']\" \
 	")
+
+
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 
 	add_library(psp ${WASM_SOURCE_FILES})
 	target_compile_definitions(psp PRIVATE PSP_ENABLE_WASM=1)

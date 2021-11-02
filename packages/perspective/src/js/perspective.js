@@ -1341,6 +1341,7 @@ export default function (Module) {
      * method to reclaim these.
      */
     table.prototype.delete = function () {
+        console.log(this.views);
         if (this.views.length > 0) {
             throw `Cannot delete Table as it still has ${this.views.length} registered View(s).`;
         }

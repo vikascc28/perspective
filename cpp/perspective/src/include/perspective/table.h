@@ -15,6 +15,7 @@
 #include <perspective/gnode.h>
 #include <perspective/pool.h>
 #include <perspective/data_table.h>
+#include <sanitizer/lsan_interface.h>
 
 namespace perspective {
 
