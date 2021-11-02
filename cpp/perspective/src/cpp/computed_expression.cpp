@@ -73,7 +73,8 @@ t_tscalar t_computed_expression_parser::TRUE_SCALAR = mktscalar(true);
 
 t_tscalar t_computed_expression_parser::FALSE_SCALAR = mktscalar(false);
 
-std::shared_ptr<exprtk::parser<t_type_check_result>> t_computed_expression_type_checker::PARSER
+std::shared_ptr<exprtk::parser<t_type_check_result>>
+    t_computed_expression_type_checker::PARSER
     = std::make_shared<exprtk::parser<t_type_check_result>>(
         t_computed_expression_parser::PARSER_COMPILE_OPTIONS);
 
@@ -381,8 +382,7 @@ t_computed_expression_parser::get_dtype(const std::string& expression_alias,
 
 t_dtype
 t_computed_expression_type_checker::type_check(
-    const std::string& expression_alias,
-    const std::string& expression_string,
+    const std::string& expression_alias, const std::string& expression_string,
     const std::string& parsed_expression_string,
     const std::vector<std::pair<std::string, std::string>>& column_ids,
     const t_schema& schema, t_expression_error& error,
@@ -406,7 +406,7 @@ t_computed_expression_type_checker::type_check(
             error.m_column = 0;
             return DTYPE_NONE;
         }
-        
+
         t_type_check_result column_result;
 
         column_result.m_type = schema.get_dtype(column_name);

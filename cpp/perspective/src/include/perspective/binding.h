@@ -335,7 +335,7 @@ namespace binding {
     t_validated_expression_map validate_expressions(
         std::shared_ptr<Table> table,
         const std::vector<std::vector<T>>& j_expressions);
-        
+
     template <typename T>
     t_validated_expression_map type_check_expressions(
         std::shared_ptr<Table> table,

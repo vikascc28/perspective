@@ -20,6 +20,12 @@ t_type_check_result::t_type_check_result(int value) {
     m_status = STATUS_VALID;
 };
 
+void
+t_type_check_result::clear() {
+    m_type = DTYPE_NONE;
+    m_status = STATUS_INVALID;
+}
+
 bool
 t_type_check_result::is_numeric() const {
     return is_numeric_type(m_type);
@@ -67,72 +73,154 @@ t_type_check_result::operator<=(const t_type_check_result& rhs) const {
 
 t_type_check_result
 t_type_check_result::operator+() const {
-    t_type_check_result res;
-    return res;
+    t_type_check_result rval;
+    rval.m_type = m_type;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 t_type_check_result
 t_type_check_result::operator-() const {
-    t_type_check_result res;
-    return res;
+    t_type_check_result rval;
+    rval.m_type = m_type;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 t_type_check_result
-t_type_check_result::operator+(const t_type_check_result& other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator+(const t_type_check_result& rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 t_type_check_result
-t_type_check_result::operator-(const t_type_check_result& other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator-(const t_type_check_result& rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 t_type_check_result
-t_type_check_result::operator*(const t_type_check_result& other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator*(const t_type_check_result& rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 t_type_check_result
-t_type_check_result::operator/(const t_type_check_result& other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator/(const t_type_check_result& rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 t_type_check_result
-t_type_check_result::operator%(const t_type_check_result& other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator%(const t_type_check_result& rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 template <typename T>
 t_type_check_result
-t_type_check_result::operator+(T other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator+(T rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 template <typename T>
 t_type_check_result
-t_type_check_result::operator-(T other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator-(T rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 template <typename T>
 t_type_check_result
-t_type_check_result::operator*(T other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator*(T rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 template <typename T>
 t_type_check_result
-t_type_check_result::operator/(T other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator/(T rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 /**
@@ -143,55 +231,108 @@ t_type_check_result::operator/(T other) const {
 #ifdef WIN32
 template <>
 t_type_check_result
-t_type_check_result::operator/(std::uint64_t other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator/(std::uint64_t rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 }
 #endif
 
 template <>
 t_type_check_result
-t_type_check_result::operator/(unsigned long other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator/(unsigned long rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 }
 
 template <>
 t_type_check_result
-t_type_check_result::operator/(double other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator/(double rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid()) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 }
 
 template <typename T>
 t_type_check_result
-t_type_check_result::operator%(T other) const {
-    t_type_check_result res;
-    return res;
+t_type_check_result::operator%(T rhs) const {
+    t_type_check_result rval;
+    rval.m_type = DTYPE_FLOAT64;
+    rval.m_status = m_status;
+
+    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_INVALID;
+    }
+
+    return rval;
 };
 
 t_type_check_result&
 t_type_check_result::operator+=(const t_type_check_result& rhs) {
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        this->m_status = STATUS_INVALID;
+    }
+
     return *this;
 };
 
 t_type_check_result&
 t_type_check_result::operator-=(const t_type_check_result& rhs) {
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        this->m_status = STATUS_INVALID;
+    }
+
     return *this;
 };
 
 t_type_check_result&
 t_type_check_result::operator*=(const t_type_check_result& rhs) {
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        this->m_status = STATUS_INVALID;
+    }
+
     return *this;
 };
 
 t_type_check_result&
 t_type_check_result::operator/=(const t_type_check_result& rhs) {
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        this->m_status = STATUS_INVALID;
+    }
+
     return *this;
 };
 
 t_type_check_result&
 t_type_check_result::operator%=(const t_type_check_result& rhs) {
+    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
+        || !rhs.is_valid()) {
+        this->m_status = STATUS_INVALID;
+    }
+
     return *this;
 };
 

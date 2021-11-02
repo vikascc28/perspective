@@ -171,9 +171,10 @@ Table::type_check_expressions(
 
         const auto& column_ids = std::get<3>(expr);
 
-        t_dtype expression_dtype = t_computed_expression_type_checker::type_check(
-            expression_alias, expression_string, parsed_expression_string,
-            column_ids, gnode_schema, error, expression_vocab, regex_mapping);
+        t_dtype expression_dtype
+            = t_computed_expression_type_checker::type_check(expression_alias,
+                expression_string, parsed_expression_string, column_ids,
+                gnode_schema, error, expression_vocab, regex_mapping);
 
         // FIXME: none == bad type? what about clear
         if (expression_dtype == DTYPE_NONE) {
@@ -187,7 +188,6 @@ Table::type_check_expressions(
 
     return rval;
 }
-
 
 std::shared_ptr<t_gnode>
 Table::make_gnode(const t_schema& in_schema) {

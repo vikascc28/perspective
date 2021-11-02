@@ -639,6 +639,43 @@ module.exports = (perspective) => {
         });
 
         describe("Functions", function () {
+            it("abs", async function () {
+                const table = await perspective.table({
+                    a: "integer",
+                    b: "float",
+                });
+
+                const expressions = [
+                    "abs(1)",
+                    "abs(integer(1))",
+                    'abs("a")',
+                    'abs("b")',
+                ];
+
+                const view = await table.view({
+                    expressions,
+                });
+
+                table.update({
+                    a: [-1, -2, 3, 4],
+                    b: [1.5, -2.5, -3.5, 4.5],
+                });
+
+                const schema = await view.expression_schema();
+                for (const expr of expressions) {
+                    expect(schema[expr]).toEqual("float");
+                }
+
+                const result = await view.to_columns();
+                expect(result["abs(1)"]).toEqual([1, 1, 1, 1]);
+                expect(result["abs(integer(1))"]).toEqual([1, 1, 1, 1]);
+                expect(result['abs("a")']).toEqual([1, 2, 3, 4]);
+                expect(result['abs("b")']).toEqual([1.5, 2.5, 3.5, 4.5]);
+
+                await view.delete();
+                await table.delete();
+            });
+
             it("min", async function () {
                 const table = await perspective.table({
                     a: "integer",
