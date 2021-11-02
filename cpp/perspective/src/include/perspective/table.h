@@ -101,6 +101,11 @@ public:
             std::vector<std::pair<std::string, std::string>>>>& expressions)
         const;
 
+    t_validated_expression_map type_check_expressions(
+        const std::vector<std::tuple<std::string, std::string, std::string,
+            std::vector<std::pair<std::string, std::string>>>>& expressions)
+        const;
+
     /**
      * @brief Given a schema, create a `t_gnode` that manages the
      * `t_data_table`.

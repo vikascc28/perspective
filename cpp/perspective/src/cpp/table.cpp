@@ -128,6 +128,67 @@ Table::validate_expressions(
     return rval;
 }
 
+t_validated_expression_map
+Table::type_check_expressions(
+    const std::vector<std::tuple<std::string, std::string, std::string,
+        std::vector<std::pair<std::string, std::string>>>>& expressions) const {
+    t_validated_expression_map rval = t_validated_expression_map();
+
+    // Expression columns live on the `t_gstate` master table, so this
+    // schema will always contain ALL expressions columns created by ALL views
+    // on this table instance.
+    auto master_table_schema = m_gnode->get_table_sptr()->get_schema();
+
+    // However, we need to keep track of the "real" columns at the time the
+    // table was instantiated, which exists on the output schema. This means
+    // that we cannot create an expression column that references another
+    // expression column - expressions can only reference "real" columns.
+    auto gnode_schema = get_schema();
+
+    // Use the gnode's expression vocab to validate expressions so we never
+    // have string-typed scalars with nullptr.
+    t_expression_vocab& expression_vocab = *(m_gnode->get_expression_vocab());
+    t_regex_mapping& regex_mapping = *(m_gnode->get_expression_regex_mapping());
+
+    for (const auto& expr : expressions) {
+        const std::string& expression_alias = std::get<0>(expr);
+        const std::string& expression_string = std::get<1>(expr);
+        const std::string& parsed_expression_string = std::get<2>(expr);
+
+        t_expression_error error;
+        error.m_line = -1;
+        error.m_column = -1;
+
+        // Cannot overwrite a "real" column with an expression column
+        if (gnode_schema.has_column(expression_alias)) {
+            error.m_error_message = "Value Error - expression \""
+                + expression_alias + "\" cannot overwrite an existing column.";
+            error.m_line = 0;
+            error.m_column = 0;
+            rval.add_error(expression_alias, error);
+            continue;
+        }
+
+        const auto& column_ids = std::get<3>(expr);
+
+        t_dtype expression_dtype = t_computed_expression_type_checker::type_check(
+            expression_alias, expression_string, parsed_expression_string,
+            column_ids, gnode_schema, error, expression_vocab, regex_mapping);
+
+        // FIXME: none == bad type? what about clear
+        if (expression_dtype == DTYPE_NONE) {
+            // extract the error from the stream and set it in the returned map
+            rval.add_error(expression_alias, error);
+        } else {
+            rval.add_expression(
+                expression_alias, dtype_to_str(expression_dtype));
+        }
+    }
+
+    return rval;
+}
+
+
 std::shared_ptr<t_gnode>
 Table::make_gnode(const t_schema& in_schema) {
     t_schema out_schema = in_schema.drop({"psp_pkey", "psp_op"});

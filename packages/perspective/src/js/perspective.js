@@ -1654,6 +1654,71 @@ export default function (Module) {
         return validated;
     };
 
+    table.prototype.type_check_expressions = function (
+        expressions,
+        override = true
+    ) {
+        const validated = {
+            expression_schema: {},
+            expression_alias: {},
+            errors: {},
+        };
+
+        if (!expressions || expressions.length === 0) return validated;
+        expressions = parse_expression_strings(expressions);
+
+        // Transform Array into a C++ vector that can be passed through
+        // Emscripten.
+        let vector = __MODULE__.make_2d_val_vector();
+
+        for (let expression of expressions) {
+            let inner = __MODULE__.make_val_vector();
+            for (let val of expression) {
+                inner.push_back(val);
+            }
+            vector.push_back(inner);
+            validated.expression_alias[expression[0]] = expression[1];
+        }
+
+        const validation_results = __MODULE__.type_check_expressions(
+            this._Table,
+            vector
+        );
+        const expression_schema = validation_results.get_expression_schema();
+        const expression_errors = validation_results.get_expression_errors();
+
+        const expression_aliases = expression_schema.keys();
+
+        for (let i = 0; i < expression_aliases.size(); i++) {
+            const alias = expression_aliases.get(i);
+            let dtype = expression_schema.get(alias);
+
+            if (override && this.overridden_types[alias]) {
+                dtype = this.overridden_types[alias];
+            }
+
+            validated.expression_schema[alias] = dtype;
+        }
+
+        const error_aliases = expression_errors.keys();
+
+        for (let i = 0; i < error_aliases.size(); i++) {
+            const alias = error_aliases.get(i);
+
+            // bound using `value_object` in embind so no need to manually
+            // convert to Object, or call delete() as memory is auto-managed.
+            const error_object = expression_errors.get(alias);
+            validated.errors[alias] = error_object;
+        }
+
+        error_aliases.delete();
+        expression_aliases.delete();
+        expression_errors.delete();
+        expression_schema.delete();
+        validation_results.delete();
+        return validated;
+    };
+
     /**
      * Validates a filter configuration, i.e. that the value to filter by is not
      * null or undefined.

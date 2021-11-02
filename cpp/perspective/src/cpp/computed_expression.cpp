@@ -73,6 +73,10 @@ t_tscalar t_computed_expression_parser::TRUE_SCALAR = mktscalar(true);
 
 t_tscalar t_computed_expression_parser::FALSE_SCALAR = mktscalar(false);
 
+std::shared_ptr<exprtk::parser<t_type_check_result>> t_computed_expression_type_checker::PARSER
+    = std::make_shared<exprtk::parser<t_type_check_result>>(
+        t_computed_expression_parser::PARSER_COMPILE_OPTIONS);
+
 /******************************************************************************
  *
  * t_computed_expression
@@ -363,6 +367,94 @@ t_computed_expression_parser::get_dtype(const std::string& expression_alias,
     t_dtype dtype = v.get_dtype();
 
     function_store.clear_computed_function_state();
+
+    if (v.m_status == STATUS_CLEAR || dtype == DTYPE_NONE) {
+        error.m_error_message
+            = "Type Error - inputs do not resolve to a valid expression.";
+        error.m_line = 0;
+        error.m_column = 0;
+        return DTYPE_NONE;
+    }
+
+    return dtype;
+}
+
+t_dtype
+t_computed_expression_type_checker::type_check(
+    const std::string& expression_alias,
+    const std::string& expression_string,
+    const std::string& parsed_expression_string,
+    const std::vector<std::pair<std::string, std::string>>& column_ids,
+    const t_schema& schema, t_expression_error& error,
+    t_expression_vocab& vocab, t_regex_mapping& regex_mapping) {
+    exprtk::symbol_table<t_type_check_result> sym_table;
+    std::vector<t_type_check_result> values;
+
+    auto num_input_columns = column_ids.size();
+    values.resize(num_input_columns);
+
+    // Add a new scalar of the input column type to the symtable, which
+    // will use the scalar to validate the output type of the expression.
+    for (t_uindex cidx = 0; cidx < num_input_columns; ++cidx) {
+        const std::string& column_id = column_ids[cidx].first;
+        const std::string& column_name = column_ids[cidx].second;
+
+        if (!schema.has_column(column_name)) {
+            error.m_error_message = ("Value Error - Input column \""
+                + column_name + "\" does not exist.");
+            error.m_line = 0;
+            error.m_column = 0;
+            return DTYPE_NONE;
+        }
+        
+        t_type_check_result column_result;
+
+        column_result.m_type = schema.get_dtype(column_name);
+        column_result.m_status = STATUS_INVALID;
+
+        values[cidx] = column_result;
+
+        sym_table.add_variable(column_id, values[cidx]);
+    }
+
+    exprtk::expression<t_type_check_result> expr_definition;
+    expr_definition.register_symbol_table(sym_table);
+
+    if (!t_computed_expression_type_checker::PARSER->compile(
+            parsed_expression_string, expr_definition)) {
+        // Error count should always be above 0 if there is a compile error -
+        // We simply take the first error and return it.
+        if (t_computed_expression_type_checker::PARSER->error_count() > 0) {
+            auto parser_error
+                = t_computed_expression_type_checker::PARSER->get_error(0);
+
+            // Given an error object and an expression, `update_error` maps the
+            // error to a line and column number inside the expression.
+            exprtk::parser_error::update_error(
+                parser_error, parsed_expression_string);
+
+            // Take the error message and strip the ExprTk error code
+            std::string error_message(parser_error.diagnostic.c_str());
+
+            // strip the Exprtk error codes such as "ERR001 -"
+            error.m_error_message = "Parser Error "
+                + error_message.substr(error_message.find("- "));
+
+            error.m_line = parser_error.line_no;
+            error.m_column = parser_error.column_no;
+        } else {
+            // If for whatever reason the error count is at 0, output a generic
+            // parser error so that we report back a valid error object.
+            error.m_error_message = "Parser Error";
+            error.m_line = 0;
+            error.m_column = 0;
+        }
+
+        return DTYPE_NONE;
+    }
+
+    t_type_check_result v = expr_definition.value();
+    t_dtype dtype = v.m_type;
 
     if (v.m_status == STATUS_CLEAR || dtype == DTYPE_NONE) {
         error.m_error_message

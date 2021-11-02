@@ -532,6 +532,7 @@ set (SOURCE_FILES
 	${PSP_CPP_SRC}/src/cpp/traversal.cpp
 	${PSP_CPP_SRC}/src/cpp/traversal_nodes.cpp
 	${PSP_CPP_SRC}/src/cpp/tree_context_common.cpp
+	${PSP_CPP_SRC}/src/cpp/type_check.cpp
 	${PSP_CPP_SRC}/src/cpp/utils.cpp
 	${PSP_CPP_SRC}/src/cpp/update_task.cpp
 	${PSP_CPP_SRC}/src/cpp/view.cpp

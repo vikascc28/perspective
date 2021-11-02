@@ -17,6 +17,7 @@
 #include <perspective/data_table.h>
 #include <perspective/rlookup.h>
 #include <perspective/computed_function.h>
+#include <perspective/type_check.h>
 #include <date/date.h>
 #include <tsl/hopscotch_set.h>
 
@@ -149,6 +150,18 @@ public:
     // constants for True and False as DTYPE_BOOL scalars
     static t_tscalar TRUE_SCALAR;
     static t_tscalar FALSE_SCALAR;
+};
+
+class PERSPECTIVE_EXPORT t_computed_expression_type_checker {
+public:
+    static t_dtype type_check(const std::string& expression_alias,
+        const std::string& expression_string,
+        const std::string& parsed_expression_string,
+        const std::vector<std::pair<std::string, std::string>>& column_ids,
+        const t_schema& schema, t_expression_error& error,
+        t_expression_vocab& vocab, t_regex_mapping& regex_mapping);
+
+    static std::shared_ptr<exprtk::parser<t_type_check_result>> PARSER;
 };
 
 /**

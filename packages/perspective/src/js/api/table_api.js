@@ -115,6 +115,11 @@ table.prototype.validate_expressions = async_queue(
     "table_method"
 );
 
+table.prototype.type_check_expressions = async_queue(
+    "type_check_expressions",
+    "table_method"
+);
+
 table.prototype.is_valid_filter = async_queue(
     "is_valid_filter",
     "table_method"

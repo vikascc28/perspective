@@ -1773,6 +1773,49 @@ namespace binding {
         return table->validate_expressions(expressions);
     };
 
+    template <>
+    t_validated_expression_map
+    type_check_expressions(std::shared_ptr<Table> table,
+        const std::vector<std::vector<t_val>>& j_expressions) {
+        // Don't create a expression object - just pass the values as a
+        // tuple for validation.
+        std::vector<std::tuple<std::string, std::string, std::string,
+            std::vector<std::pair<std::string, std::string>>>>
+            expressions;
+        expressions.resize(j_expressions.size());
+
+        // Convert from vector of t_val into vector of tuples
+        for (t_uindex idx = 0; idx < j_expressions.size(); ++idx) {
+            const auto& expr = j_expressions[idx];
+            std::string expression_alias = expr[0].as<std::string>();
+            std::string expression_string = expr[1].as<std::string>();
+            std::string parsed_expression_string = expr[2].as<std::string>();
+            std::vector<std::pair<std::string, std::string>> column_ids;
+
+            // Read the Javascript map of column IDs to column names, and
+            // convert them into string pairs. This guarantees iteration
+            // order at the cost of constant time access (which we don't use).
+            t_val j_column_id_keys
+                = t_val::global("Object").call<t_val>("keys", expr[3]);
+            auto column_id_keys
+                = vecFromArray<t_val, std::string>(j_column_id_keys);
+            column_ids.resize(column_id_keys.size());
+
+            for (t_uindex cidx = 0; cidx < column_id_keys.size(); ++cidx) {
+                const std::string& column_id = column_id_keys[cidx];
+                column_ids[cidx] = std::pair<std::string, std::string>(
+                    column_id, expr[3][column_id].as<std::string>());
+            }
+
+            auto tp = std::make_tuple(expression_alias, expression_string,
+                parsed_expression_string, column_ids);
+
+            expressions[idx] = tp;
+        }
+
+        return table->type_check_expressions(expressions);
+    };
+
     /******************************************************************************
      *
      * Data serialization
@@ -2282,5 +2325,6 @@ EMSCRIPTEN_BINDINGS(perspective) {
     function("get_row_delta_two", &get_row_delta<t_ctx2>);
     function("scalar_to_val", &scalar_to_val);
     function("validate_expressions", &validate_expressions<t_val>);
+    function("type_check_expressions", &type_check_expressions<t_val>);
     function("is_valid_datetime", &is_valid_datetime);
 }
