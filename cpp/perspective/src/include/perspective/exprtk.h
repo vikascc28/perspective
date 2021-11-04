@@ -207,7 +207,7 @@ namespace details {
 } // end namespace exprtk
 
 // exprtk needs to be imported after the type tags have been declared.
-// #define exprtk_enable_debugging
+#define exprtk_enable_debugging
 
 // for some reason, break/continue will break expression.value() when it is
 // called, but enabling this ifdef creates a litany of compiler warnings
@@ -3170,6 +3170,7 @@ namespace details {
                         numeric::details::real_type_tag());
 
                     if (parsed) {
+                        std::cout << "parsed value: " << dummy << std::endl;
                         t.m_type = perspective::DTYPE_FLOAT64;
                         t.m_status = perspective::STATUS_VALID;
                     } else {

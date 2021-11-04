@@ -76,11 +76,19 @@ namespace computed_function {
         bool m_is_type_validator;                                              \
     };
 
-    // TODO PSP_NON_COPYABLE all functions
+    template <typename T>
+    struct intern : public exprtk::igeneric_function<T> {
+        typedef typename exprtk::igeneric_function<T>::parameter_list_t
+            t_parameter_list;
+        
+        intern(t_expression_vocab& expression_vocab);
+        ~intern();
+        T operator()(t_parameter_list parameters);
+        t_expression_vocab& m_expression_vocab;
+    };
 
     // Place string literals into `expression_vocab` so they do not go out
     // of scope and remain valid for the lifetime of the table.
-    STRING_FUNCTION_HEADER(intern)
 
     // Concat any number of columns and string literals together.
     STRING_FUNCTION_HEADER(concat)

@@ -132,20 +132,20 @@ public:
     static std::size_t PARSER_COMPILE_OPTIONS;
 
     // Static computed functions have no state
-    static computed_function::bucket BUCKET_FN;
-    static computed_function::hour_of_day HOUR_OF_DAY_FN;
-    static computed_function::percent_of PERCENT_OF_FN;
-    static computed_function::inrange_fn INRANGE_FN;
-    static computed_function::min_fn MIN_FN;
-    static computed_function::max_fn MAX_FN;
-    static computed_function::length LENGTH_FN;
-    static computed_function::is_null IS_NULL_FN;
-    static computed_function::is_not_null IS_NOT_NULL_FN;
-    static computed_function::to_integer TO_INTEGER_FN;
-    static computed_function::to_float TO_FLOAT_FN;
-    static computed_function::to_boolean TO_BOOLEAN_FN;
-    static computed_function::make_date MAKE_DATE_FN;
-    static computed_function::make_datetime MAKE_DATETIME_FN;
+    // static computed_function::bucket BUCKET_FN;
+    // static computed_function::hour_of_day HOUR_OF_DAY_FN;
+    // static computed_function::percent_of PERCENT_OF_FN;
+    // static computed_function::inrange_fn INRANGE_FN;
+    // static computed_function::min_fn MIN_FN;
+    // static computed_function::max_fn MAX_FN;
+    // static computed_function::length LENGTH_FN;
+    // static computed_function::is_null IS_NULL_FN;
+    // static computed_function::is_not_null IS_NOT_NULL_FN;
+    // static computed_function::to_integer TO_INTEGER_FN;
+    // static computed_function::to_float TO_FLOAT_FN;
+    // static computed_function::to_boolean TO_BOOLEAN_FN;
+    // static computed_function::make_date MAKE_DATE_FN;
+    // static computed_function::make_datetime MAKE_DATETIME_FN;
 
     // constants for True and False as DTYPE_BOOL scalars
     static t_tscalar TRUE_SCALAR;
@@ -162,6 +162,9 @@ public:
         t_expression_vocab& vocab, t_regex_mapping& regex_mapping);
 
     static std::shared_ptr<exprtk::parser<t_type_check_result>> PARSER;
+
+    // True and False resolve to the same bool result in type checking
+    static t_type_check_result BOOLEAN_TYPE_CHECK_RESULT;
 };
 
 /**
@@ -189,14 +192,15 @@ struct PERSPECTIVE_EXPORT t_validated_expression_map {
  * and t_computed_expression::get_dtype. When a new computed function
  * definition is added, it needs to be added here as well.
  */
+template <typename T>
 struct PERSPECTIVE_EXPORT t_computed_function_store {
     PSP_NON_COPYABLE(t_computed_function_store);
 
     t_computed_function_store(t_expression_vocab& vocab,
-        t_regex_mapping& regex_mapping, bool is_type_validator);
+        t_regex_mapping& regex_mapping);
 
     void register_computed_functions(
-        exprtk::symbol_table<t_tscalar>& sym_table);
+        exprtk::symbol_table<T>& sym_table);
 
     /**
      * @brief Clear any intermediate state that may be used by functions, such
@@ -206,17 +210,18 @@ struct PERSPECTIVE_EXPORT t_computed_function_store {
 
     // Member functions are instances that must be initialized per-method call,
     // as they have references to a `t_expression_vocab`.
-    computed_function::day_of_week m_day_of_week_fn;
-    computed_function::month_of_year m_month_of_year_fn;
-    computed_function::intern m_intern_fn;
-    computed_function::concat m_concat_fn;
-    computed_function::order m_order_fn;
-    computed_function::upper m_upper_fn;
-    computed_function::lower m_lower_fn;
-    computed_function::to_string m_to_string_fn;
-    computed_function::match m_match_fn;
-    computed_function::fullmatch m_fullmatch_fn;
-    computed_function::search m_search_fn;
+    computed_function::intern<T> m_intern_fn;
+
+    // computed_function::day_of_week m_day_of_week_fn;
+    // computed_function::month_of_year m_month_of_year_fn;
+    // computed_function::concat m_concat_fn;
+    // computed_function::order m_order_fn;
+    // computed_function::upper m_upper_fn;
+    // computed_function::lower m_lower_fn;
+    // computed_function::to_string m_to_string_fn;
+    // computed_function::match m_match_fn;
+    // computed_function::fullmatch m_fullmatch_fn;
+    // computed_function::search m_search_fn;
 };
 
 } // end namespace perspective

@@ -20,7 +20,7 @@
 namespace perspective {
 
 struct t_type_check_result {
-    t_type_check_result() = default;
+    t_type_check_result();
 
     t_type_check_result(int value);
 
@@ -70,3 +70,10 @@ struct t_type_check_result {
 bool operator>(const std::size_t& lhs, const t_type_check_result& rhs);
 
 } // end namespace perspective
+
+namespace std {
+    
+PERSPECTIVE_EXPORT std::ostream& operator<<(
+    std::ostream& os, const perspective::t_type_check_result& t);
+
+} // end namespace std

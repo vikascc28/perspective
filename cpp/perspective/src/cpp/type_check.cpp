@@ -15,7 +15,12 @@ operator>(const std::size_t& lhs, const t_type_check_result& rhs) {
     return false;
 }
 
+t_type_check_result::t_type_check_result()
+    : m_type(DTYPE_NONE)
+    , m_status(STATUS_INVALID) {}
+
 t_type_check_result::t_type_check_result(int value) {
+    std::cout << "constructing new t_typecheck from " << value << std::endl;
     m_type = DTYPE_FLOAT64;
     m_status = STATUS_VALID;
 };
@@ -75,10 +80,10 @@ t_type_check_result
 t_type_check_result::operator+() const {
     t_type_check_result rval;
     rval.m_type = m_type;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -88,10 +93,10 @@ t_type_check_result
 t_type_check_result::operator-() const {
     t_type_check_result rval;
     rval.m_type = m_type;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -101,11 +106,11 @@ t_type_check_result
 t_type_check_result::operator+(const t_type_check_result& rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
+    std::cout << "add " << get_dtype_descr(m_type) << " vs " << get_dtype_descr(rhs.m_type) << std::endl;
 
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -115,11 +120,10 @@ t_type_check_result
 t_type_check_result::operator-(const t_type_check_result& rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -129,11 +133,11 @@ t_type_check_result
 t_type_check_result::operator*(const t_type_check_result& rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    std::cout << "multiply " << get_dtype_descr(m_type) << " vs " << get_dtype_descr(rhs.m_type) << std::endl;
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -143,11 +147,10 @@ t_type_check_result
 t_type_check_result::operator/(const t_type_check_result& rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -157,11 +160,10 @@ t_type_check_result
 t_type_check_result::operator%(const t_type_check_result& rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -172,10 +174,10 @@ t_type_check_result
 t_type_check_result::operator+(T rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -186,10 +188,10 @@ t_type_check_result
 t_type_check_result::operator-(T rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -200,10 +202,12 @@ t_type_check_result
 t_type_check_result::operator*(T rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
-        rval.m_status = STATUS_INVALID;
+    std::cout << "multiply by T" << std::endl;
+
+    if (is_numeric() && is_valid() && std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -214,10 +218,10 @@ t_type_check_result
 t_type_check_result::operator/(T rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -234,10 +238,10 @@ t_type_check_result
 t_type_check_result::operator/(std::uint64_t rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -249,10 +253,10 @@ t_type_check_result
 t_type_check_result::operator/(unsigned long rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -263,10 +267,10 @@ t_type_check_result
 t_type_check_result::operator/(double rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid()) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid()) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -277,10 +281,10 @@ t_type_check_result
 t_type_check_result::operator%(T rhs) const {
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
-    rval.m_status = m_status;
+    rval.m_status = STATUS_INVALID;
 
-    if (!is_numeric() || !is_valid() || !std::is_arithmetic<T>::value) {
-        rval.m_status = STATUS_INVALID;
+    if (is_numeric() && is_valid() && std::is_arithmetic<T>::value) {
+        rval.m_status = STATUS_VALID;
     }
 
     return rval;
@@ -288,9 +292,10 @@ t_type_check_result::operator%(T rhs) const {
 
 t_type_check_result&
 t_type_check_result::operator+=(const t_type_check_result& rhs) {
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        this->m_status = STATUS_INVALID;
+    this->m_status = STATUS_INVALID;
+
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        this->m_status = STATUS_VALID;
     }
 
     return *this;
@@ -298,9 +303,10 @@ t_type_check_result::operator+=(const t_type_check_result& rhs) {
 
 t_type_check_result&
 t_type_check_result::operator-=(const t_type_check_result& rhs) {
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        this->m_status = STATUS_INVALID;
+    this->m_status = STATUS_INVALID;
+
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        this->m_status = STATUS_VALID;
     }
 
     return *this;
@@ -308,9 +314,10 @@ t_type_check_result::operator-=(const t_type_check_result& rhs) {
 
 t_type_check_result&
 t_type_check_result::operator*=(const t_type_check_result& rhs) {
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        this->m_status = STATUS_INVALID;
+    this->m_status = STATUS_INVALID;
+
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        this->m_status = STATUS_VALID;
     }
 
     return *this;
@@ -318,9 +325,10 @@ t_type_check_result::operator*=(const t_type_check_result& rhs) {
 
 t_type_check_result&
 t_type_check_result::operator/=(const t_type_check_result& rhs) {
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        this->m_status = STATUS_INVALID;
+    this->m_status = STATUS_INVALID;
+
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        this->m_status = STATUS_VALID;
     }
 
     return *this;
@@ -328,12 +336,23 @@ t_type_check_result::operator/=(const t_type_check_result& rhs) {
 
 t_type_check_result&
 t_type_check_result::operator%=(const t_type_check_result& rhs) {
-    if (!is_numeric() || !is_valid() || !rhs.is_numeric()
-        || !rhs.is_valid()) {
-        this->m_status = STATUS_INVALID;
+    this->m_status = STATUS_INVALID;
+
+    if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
+        this->m_status = STATUS_VALID;
     }
 
     return *this;
 };
 
 } // end namespace perspective
+
+namespace std {
+
+std::ostream& operator<<(
+    std::ostream& os, const perspective::t_type_check_result& t) {
+    os << perspective::get_dtype_descr(t.m_type) << ":" << perspective::get_status_descr(t.m_status);
+    return os;
+}
+
+} // end namespace std

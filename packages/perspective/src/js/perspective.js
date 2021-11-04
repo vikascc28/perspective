@@ -1560,6 +1560,8 @@ export default function (Module) {
             }
         }
 
+        console.log(validated_expressions);
+
         return validated_expressions;
     }
 

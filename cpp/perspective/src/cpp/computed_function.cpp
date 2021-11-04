@@ -24,49 +24,49 @@ namespace computed_function {
     using float32 = float;
     using float64 = double;
 
-    intern::intern(t_expression_vocab& expression_vocab, bool is_type_validator)
-        : exprtk::igeneric_function<t_tscalar>("S")
-        , m_expression_vocab(expression_vocab)
-        , m_is_type_validator(is_type_validator) {
-        // The sentinel is a string scalar pointing to an empty string
-        // that is stored in `expression_vocab`. Previously we were using
-        // string scalars with nullptrs to type check, which caused nullptr
-        // errors in strcmp().
-        t_tscalar sentinel;
-        sentinel.clear();
-        sentinel.set(m_expression_vocab.get_empty_string());
-        sentinel.m_status = STATUS_INVALID;
-        m_sentinel = sentinel;
-    }
+    template <typename T>
+    intern<T>::intern(t_expression_vocab& expression_vocab)
+        : exprtk::igeneric_function<T>("S")
+        , m_expression_vocab(expression_vocab) {}
 
-    intern::~intern() {}
+    template <typename T>
+    intern<T>::~intern() {}
 
+    template<>
     t_tscalar
-    intern::operator()(t_parameter_list parameters) {
+    intern<t_tscalar>::operator()(t_parameter_list parameters) {
+        std::cout << "called intern() scalar " << std::endl;
         t_tscalar rval;
         rval.clear();
         rval.m_type = DTYPE_STR;
         t_generic_type& gt = parameters[0];
 
-        // intern('abc') - with a scalar string
+        // Materialize the string, any string, even if it's empty
         t_string_view temp_string(gt);
         std::string temp_str
             = std::string(temp_string.begin(), temp_string.end());
-
-        // Don't allow empty strings from the user
-        if (temp_str == "")
-            return rval;
-
-        if (m_is_type_validator) {
-            // Return the sentinel value which indicates a valid output from
-            // type checking, as the output value is not STATUS_CLEAR
-            return m_sentinel;
-        }
 
         // Intern the string into the vocabulary.
         rval.set(m_expression_vocab.intern(temp_str));
         return rval;
     }
+
+    template<>
+    t_type_check_result
+    intern<t_type_check_result>::operator()(t_parameter_list parameters) {
+        std::cout << "called intern() type check " << std::endl;
+        t_type_check_result rval;
+        rval.clear();
+
+        // Can shortcut type-check, as exprtk already validates that we've
+        // been given a string literal.
+        rval.m_type = DTYPE_STR;
+        rval.m_status = STATUS_INVALID;
+        return rval;
+    }
+
+    template struct intern<t_tscalar>;
+    template struct intern<t_type_check_result>;
 
     concat::concat(t_expression_vocab& expression_vocab, bool is_type_validator)
         : m_expression_vocab(expression_vocab)

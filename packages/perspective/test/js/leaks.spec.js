@@ -108,7 +108,7 @@ describe("leaks", function () {
         });
     });
 
-    describe("expression columns", function () {
+    describe.skip("expression columns", function () {
         it("0 sided does not leak", async () => {
             const table = await perspective.table({
                 a: [1, 2, 3, 4],
