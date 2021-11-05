@@ -23,6 +23,7 @@ from ._utils import (
 from .libbinding import (
     make_table,
     validate_expressions,
+    type_check_expressions,
     str_to_filter_op,
     t_filter_op,
     t_op,
@@ -192,6 +193,52 @@ class Table(object):
 
         expressions = _parse_expression_strings(expressions)
         validation_results = validate_expressions(self._table, expressions)
+        expression_schema = validation_results.get_expression_schema()
+        expression_errors = validation_results.get_expression_errors()
+
+        for expression in expressions:
+            # expression_alias can be used to map the alias to the
+            # full expression string in the UI.
+            validated["expression_alias"][expression[0]] = expression[1]
+
+        for (alias, dtype) in iteritems(expression_schema):
+            if not as_string:
+                dtype = _str_to_pythontype(dtype)
+
+            validated["expression_schema"][alias] = expression_schema[alias]
+
+        for (alias, error) in iteritems(expression_errors):
+            error_dict = {}
+            error_dict["error_message"] = error.error_message
+            error_dict["line"] = error.line
+            error_dict["column"] = error.column
+
+            validated["errors"][alias] = error_dict
+
+        return validated
+
+    def type_check_expressions(self, expressions, as_string=False):
+        """Returns an :obj:`dict` with two keys: "expression_schema", which is
+        a schema containing the column names and data types for each valid
+        expression in ``expressions``, and "errors", which is a dict of
+        expressions to error objects that contain additional metadata:
+        `error_message`, `line`, and `column`.
+
+        Args:
+            expressions (:obj:`list`): A list of string expressions to validate
+                and create a schema from.
+
+        Keyword Args:
+            as_string (:obj:`bool`): If True, returns the data types as string
+                representations so they can be serialized.
+        """
+        validated = {"expression_schema": {}, "errors": {}, "expression_alias": {}}
+
+        if len(expressions) == 0:
+            return validated
+
+        expressions = _parse_expression_strings(expressions)
+        validation_results = type_check_expressions(self._table, expressions)
         expression_schema = validation_results.get_expression_schema()
         expression_errors = validation_results.get_expression_errors()
 

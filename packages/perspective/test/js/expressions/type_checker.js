@@ -24,7 +24,7 @@ module.exports = (perspective) => {
                 // '"z"',
                 // "1 * 100",
                 // "// xyz\nsqrt(100)",
-                "var x := 1; x * 'abc'",
+                "10 * 'abc'",
                 // "-1921.213 * 'abc'",
                 // "'abc' * 1",
                 // "'abc' * 256.12345",

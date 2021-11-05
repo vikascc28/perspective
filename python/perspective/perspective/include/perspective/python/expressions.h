@@ -28,6 +28,12 @@ validate_expressions_py(
     std::shared_ptr<Table> table,
     const std::vector<std::vector<t_val>>& p_expressions);
 
+t_validated_expression_map
+type_check_expressions_py(
+    std::shared_ptr<Table> table,
+    const std::vector<std::vector<t_val>>& p_expressions);
+
+
 } //namespace binding
 } //namespace perspective
 

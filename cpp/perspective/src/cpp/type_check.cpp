@@ -131,11 +131,11 @@ t_type_check_result::operator-(const t_type_check_result& rhs) const {
 
 t_type_check_result
 t_type_check_result::operator*(const t_type_check_result& rhs) const {
+    std::cout << "multiply " << *this << " vs " << rhs << std::endl;
     t_type_check_result rval;
     rval.m_type = DTYPE_FLOAT64;
     rval.m_status = STATUS_INVALID;
 
-    std::cout << "multiply " << get_dtype_descr(m_type) << " vs " << get_dtype_descr(rhs.m_type) << std::endl;
     if (is_numeric() && is_valid() && rhs.is_numeric() && rhs.is_valid()) {
         rval.m_status = STATUS_VALID;
     }
