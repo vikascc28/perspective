@@ -43,6 +43,7 @@ declare module "@finos/perspective" {
         | "sum not null"
         | "unique"
         | "var"
+        | "join"
         | ["weighted mean", ColumnName];
 
     export type FilterOp =
@@ -86,6 +87,7 @@ declare module "@finos/perspective" {
             options?: SerializeConfig
         ): Promise<Record<string, Array<string | boolean | Date | number>>>;
         to_csv(options?: SerializeConfig & {config: unknown}): Promise<string>;
+        set_depth(depth: number): Promise<void>;
         to_json(
             options?: SerializeConfig
         ): Promise<Array<Record<string, string | boolean | Date | number>>>;
