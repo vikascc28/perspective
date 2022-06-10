@@ -64,11 +64,12 @@ class TestViewExpression(object):
             "// f\ntoday()",
             "// g\nnow()",
             "// h\nlength('abcd')",
+            "// i\nnull",
         ]
 
         validated = table.validate_expressions(expressions)
 
-        aliases = ["x", "y", "c", "d", "e", "f", "g", "h"]
+        aliases = ["x", "y", "c", "d", "e", "f", "g", "h", "i"]
 
         for idx, alias in enumerate(aliases):
             assert validated["expression_alias"][alias] == expressions[idx]

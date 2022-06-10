@@ -265,10 +265,16 @@ t_computed_expression_parser::precompute(const std::string& expression_alias,
     }
 
     t_tscalar v = expr_definition.value();
+    t_dtype resolved_type = v.get_dtype();
     function_store.clear_computed_function_state();
 
+    // If computed type is null, promote to string
+    if (resolved_type == DTYPE_NONE) {
+        resolved_type = DTYPE_STR;
+    }
+
     return std::make_shared<t_computed_expression>(expression_alias,
-        expression_string, parsed_expression_string, column_ids, v.get_dtype());
+        expression_string, parsed_expression_string, column_ids, resolved_type);
 }
 
 t_dtype
@@ -367,11 +373,20 @@ t_computed_expression_parser::get_dtype(const std::string& expression_alias,
 
     function_store.clear_computed_function_state();
 
-    if (v.m_status == STATUS_CLEAR || dtype == DTYPE_NONE) {
+    if (v.m_status == STATUS_CLEAR) {
         error.m_error_message
             = "Type Error - inputs do not resolve to a valid expression.";
         error.m_line = 0;
         error.m_column = 0;
+        return DTYPE_NONE;
+    }
+
+    if (dtype == DTYPE_NONE) {
+        // Don't error, but return None
+        // error.m_error_message
+        //     = "Type Error - inputs resolve to null.";
+        // error.m_line = 0;
+        // error.m_column = 0;
         return DTYPE_NONE;
     }
 
@@ -501,6 +516,12 @@ t_computed_function_store::register_computed_functions(
     sym_table.add_function("replace_all", m_replace_all_fn);
 
     // And scalar constants
+    // NOTE: number (28) https://github.com/ArashPartow/exprtk
+    // The following is a list  of reserved words and symbols  used by
+    //   ExprTk. Attempting to  add a variable  or custom function  to a
+    //   symbol table using any of  the reserved words will result  in a
+    //   failure.
+    //   ..., false, ..., null, ..., true, ...
     sym_table.add_constant("True", t_computed_expression_parser::TRUE_SCALAR);
     sym_table.add_constant("False", t_computed_expression_parser::FALSE_SCALAR);
 }

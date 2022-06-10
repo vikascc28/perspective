@@ -691,6 +691,7 @@ export async function createModel(regular, table, view, extend = {}) {
         view.expression_schema(),
         view.column_paths(),
     ]);
+    console.log(`here: ${JSON.stringify(validated_expressions)}`);
 
     const _plugin_background = chroma(
         get_rule(regular, "--plugin--background", "#FFFFFF")

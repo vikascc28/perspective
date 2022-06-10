@@ -250,6 +250,7 @@ pub struct RegisterArgs {
 pub struct MonarchTokensProviderArgs<'a> {
     pub tokenizer: MonarchTokenizer<'a>,
     pub brackets: Vec<Vec<&'a str>>,
+    pub keywords: Vec<&'a str>,
 }
 
 #[derive(Serialize)]
