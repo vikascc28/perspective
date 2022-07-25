@@ -13,7 +13,7 @@
     },
     "emscripten": "3.1.14",
     "engines": {
-        "node": ">=14.18.2"
+        "node": ">=16.14"
     },
     "workspaces": [
         "rust/*",
