@@ -54,7 +54,7 @@ version = get_version(os.path.join(here, "perspective", "core", "_version.py"))
 requires = [
     "ipywidgets>=7.5.1,<8",
     "future>=0.16.0,<1",
-    "numpy>=1.13.1,<2",
+    "numpy>=1.13.1,<1.24",
     "pandas>=0.22.0,<2",
     "python-dateutil>=2.8.0,<3",
     "traitlets>=4.3.2,<6",
@@ -78,7 +78,7 @@ requires_dev = (
         "pip",
         "psutil>=5,<6",
         "pybind11>=2.4.0,<3",
-        "pyarrow>=0.16.0",
+        "pyarrow>=10",
         "pytest>=4.3.0",
         "pytest-aiohttp>=1",
         "pytest-asyncio>=0.20",

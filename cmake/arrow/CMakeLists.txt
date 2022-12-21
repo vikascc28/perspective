@@ -275,6 +275,10 @@ add_library(arrow STATIC ${ARROW_SRCS})
 target_compile_definitions(arrow PUBLIC ARROW_NO_DEPRECATED_API)
 target_compile_definitions(arrow PUBLIC ARROW_STATIC)
 
+if(NOT WIN32)
+    target_compile_options(arrow PRIVATE -fvisibility=hidden)
+endif()
+
 # will need built boost filesystem and system .lib to work, even though
 # perspective itself does not use those dependencies
 target_link_libraries(arrow
