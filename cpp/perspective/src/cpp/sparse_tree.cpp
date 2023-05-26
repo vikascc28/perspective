@@ -2019,17 +2019,14 @@ t_stree::get_aggregate_median(std::vector<t_tscalar>& values) const {
     int size = values.size();
     bool is_even_size = size % 2 == 0;
 
-    if (is_even_size && values[0].is_numeric()){
+    if (is_even_size && values[0].is_floating_point()) {
         t_tscalar median_average;
-        std::vector<t_tscalar>::iterator first_middle = values.begin() + ((size - 1) / 2);
-        std::vector<t_tscalar>::iterator second_middle = values.begin() + (size / 2);
-
-        nth_element(values.begin(),  first_middle, values.end());
-        nth_element(values.begin(), second_middle, values.end());
-
-        median_average.set((*first_middle + *second_middle) / static_cast<t_tscalar>(2));
+        std::vector<t_tscalar>::iterator middle = values.begin() + (size / 2);
+        nth_element(values.begin(), middle, values.end());
+        median_average.set(
+            (*middle + *(middle - 1)) / static_cast<t_tscalar>(2));
         return median_average;
-    }else{
+    } else {
         std::vector<t_tscalar>::iterator middle = values.begin() + (size / 2);
         std::nth_element(values.begin(), middle, values.end());
         return *middle;
