@@ -15,12 +15,9 @@
 
 /******************************************************************************
  *
- * Pybind includes
+ * Python includes
  */
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
-#include <pybind11/numpy.h>
+
 #include <boost/optional.hpp>
 
 /******************************************************************************
@@ -34,13 +31,12 @@
  * Pybind namespace
  */
 using namespace perspective;
-namespace py = pybind11;
 
 /******************************************************************************
  *
  * Python typedefs
  */
-typedef py::object t_val;
+typedef PyObject* t_val;
 typedef t_val t_data_accessor;
 
 #endif

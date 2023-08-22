@@ -82,7 +82,6 @@ requires_dev = (
         "jupyter_packaging==0.12.3",
         "pip",
         "psutil>=5,<6",
-        "pybind11>=2.4.0,<3",
         "pyarrow>=0.16.0",
         "pytest>=4.3.0",
         "pytest-aiohttp>=1",

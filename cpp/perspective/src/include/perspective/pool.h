@@ -27,8 +27,7 @@
 #include <emscripten/val.h>
 typedef emscripten::val t_val;
 #elif defined PSP_ENABLE_PYTHON
-#include <pybind11/pybind11.h>
-typedef py::object t_val;
+typedef PyObject* t_val;
 #endif
 
 namespace perspective {

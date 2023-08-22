@@ -12,8 +12,6 @@
 
 #pragma once
 #ifdef PSP_ENABLE_PYTHON
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
 #include <perspective/first.h>
 #include <perspective/base.h>
 #include <perspective/exception.h>

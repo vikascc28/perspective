@@ -15,12 +15,10 @@
 
 /******************************************************************************
  *
- * Pybind includes
+ * Python
  */
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
-#include <pybind11/numpy.h>
+#include <perspective/python/first.h>
+
 #include <boost/optional.hpp>
 
 /******************************************************************************
@@ -54,7 +52,58 @@ namespace binding {}
  */
 using namespace perspective::binding;
 
-PYBIND11_MODULE(libpsppy, m) {
+static PyMethodDef libpsppy_methods[] = {
+  // {"create_schema", (PyCFunction)create_schema_py_raw, METH_NOARGS},
+  /******************************************************************************
+   *
+   * Perspective defs
+   */
+  {"str_to_filter_op", (PyCFunction)str_to_filter_op},
+  {"make_table", (PyCFunction)make_table_py},
+  {"update_table", (PyCFunction)update_table_py
+  {"make_view_unit", (PyCFunction)make_view_unit
+  {"make_view_zero", (PyCFunction)make_view_ctx0
+  {"make_view_one", (PyCFunction)make_view_ctx1
+  {"make_view_two", (PyCFunction)make_view_ctx2
+  {"get_data_slice_unit", (PyCFunction)get_data_slice_unit
+  {"get_from_data_slice_unit", (PyCFunction)get_from_data_slice_unit
+  {"get_pkeys_from_data_slice_unit", (PyCFunction)get_pkeys_from_data_slice_unit
+  {"get_data_slice_zero", (PyCFunction)get_data_slice_ctx0
+  {"get_from_data_slice_zero", (PyCFunction)get_from_data_slice_ctx0
+  {"get_pkeys_from_data_slice_zero", (PyCFunction)get_pkeys_from_data_slice_ctx0
+  {"get_data_slice_one", (PyCFunction)get_data_slice_ctx1
+  {"get_from_data_slice_one", (PyCFunction)get_from_data_slice_ctx1
+  {"get_pkeys_from_data_slice_one", (PyCFunction)get_pkeys_from_data_slice_ctx1
+  {"get_data_slice_two", (PyCFunction)get_data_slice_ctx2
+  {"get_from_data_slice_two", (PyCFunction)get_from_data_slice_ctx2
+  {"get_pkeys_from_data_slice_two", (PyCFunction)get_pkeys_from_data_slice_ctx2
+  {"to_arrow_unit", (PyCFunction)to_arrow_unit
+  {"to_arrow_zero", (PyCFunction)to_arrow_zero
+  {"to_arrow_one", (PyCFunction)to_arrow_one
+  {"to_arrow_two", (PyCFunction)to_arrow_two
+  {"to_csv_unit", (PyCFunction)to_csv_unit
+  {"to_csv_zero", (PyCFunction)to_csv_zero
+  {"to_csv_one", (PyCFunction)to_csv_one
+  {"to_csv_two", (PyCFunction)to_csv_two
+  {"get_row_delta_unit", (PyCFunction)get_row_delta_unit
+  {"get_row_delta_zero", (PyCFunction)get_row_delta_zero
+  {"get_row_delta_one", (PyCFunction)get_row_delta_one
+  {"get_row_delta_two", (PyCFunction)get_row_delta_two
+  {"validate_expressions", (PyCFunction)validate_expressions_py
+  {"init_expression_parser", (PyCFunction)init_expression_parser
+  {"scalar_to_py", (PyCFunction)scalar_to_py
+
+  {nullptr, nullptr, 0, nullptr}
+};
+
+static PyModuleDef libpsppy_module = {
+  PyModuleDef_HEAD_INIT,
+  "libpsppy",
+  "libpsppy",
+  -1,
+  libpsppy_methods
+};
+
     /******************************************************************************
      *
      * PerspectiveCppError
@@ -424,45 +473,11 @@ PYBIND11_MODULE(libpsppy, m) {
         .value("OP_INSERT", OP_INSERT)
         .value("OP_DELETE", OP_DELETE)
         .value("OP_CLEAR", OP_CLEAR);
+}
 
-    /******************************************************************************
-     *
-     * Perspective defs
-     */
-    m.def("str_to_filter_op", &str_to_filter_op);
-    m.def("make_table", &make_table_py);
-    m.def("update_table", &update_table_py);
-    m.def("make_view_unit", &make_view_unit);
-    m.def("make_view_zero", &make_view_ctx0);
-    m.def("make_view_one", &make_view_ctx1);
-    m.def("make_view_two", &make_view_ctx2);
-    m.def("get_data_slice_unit", &get_data_slice_unit);
-    m.def("get_from_data_slice_unit", &get_from_data_slice_unit);
-    m.def("get_pkeys_from_data_slice_unit", &get_pkeys_from_data_slice_unit);
-    m.def("get_data_slice_zero", &get_data_slice_ctx0);
-    m.def("get_from_data_slice_zero", &get_from_data_slice_ctx0);
-    m.def("get_pkeys_from_data_slice_zero", &get_pkeys_from_data_slice_ctx0);
-    m.def("get_data_slice_one", &get_data_slice_ctx1);
-    m.def("get_from_data_slice_one", &get_from_data_slice_ctx1);
-    m.def("get_pkeys_from_data_slice_one", &get_pkeys_from_data_slice_ctx1);
-    m.def("get_data_slice_two", &get_data_slice_ctx2);
-    m.def("get_from_data_slice_two", &get_from_data_slice_ctx2);
-    m.def("get_pkeys_from_data_slice_two", &get_pkeys_from_data_slice_ctx2);
-    m.def("to_arrow_unit", &to_arrow_unit);
-    m.def("to_arrow_zero", &to_arrow_zero);
-    m.def("to_arrow_one", &to_arrow_one);
-    m.def("to_arrow_two", &to_arrow_two);
-    m.def("to_csv_unit", &to_csv_unit);
-    m.def("to_csv_zero", &to_csv_zero);
-    m.def("to_csv_one", &to_csv_one);
-    m.def("to_csv_two", &to_csv_two);
-    m.def("get_row_delta_unit", &get_row_delta_unit);
-    m.def("get_row_delta_zero", &get_row_delta_zero);
-    m.def("get_row_delta_one", &get_row_delta_one);
-    m.def("get_row_delta_two", &get_row_delta_two);
-    m.def("validate_expressions", &validate_expressions_py);
-    m.def("init_expression_parser", &init_expression_parser);
-    m.def("scalar_to_py", &scalar_to_py);
+PyMODINIT_FUNC PyInit_libpsppy(void) {
+  Py_Initialize();
+  return PyModule_Create(&libpsppy_module);
 }
 
 #endif

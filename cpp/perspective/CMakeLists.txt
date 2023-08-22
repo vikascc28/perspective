@@ -353,8 +353,6 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
         psp_build_message("${Cyan}Using Python ${Python_VERSION}, \nPython_INCLUDE_DIRS: ${Python_INCLUDE_DIRS}, \nPython_LIBRARIES: ${Python_LIBRARIES}, \nPython_EXECUTABLE: ${Python_EXECUTABLE} ${ColorReset}")
         include_directories(${Python_INCLUDE_DIRS})
 
-        psp_build_dep("pybind11" "${PSP_CMAKE_MODULE_PATH}/Pybind.txt.in")
-
         find_package(NumPy REQUIRED)
 
         if(NOT PYTHON_NUMPY_FOUND)
