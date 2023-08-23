@@ -102,7 +102,7 @@ namespace numpy {
          * When memory cannot be copied for dtype=object arrays, for example),
          * fill the column through iteration.
          */
-        void fill_column_iter(const py::array& array, t_data_table& tbl,
+        void fill_column_iter(const PyArrayObject* array, t_data_table& tbl,
             std::shared_ptr<t_column> col, const std::string& name,
             t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
 
@@ -138,15 +138,15 @@ namespace numpy {
          * was inferred as `DTYPE_INT32` with `DTYPE_INT64`, which is more
          * commonly used in numpy arrays.)
          */
-        void fill_numeric_iter(const py::array& array, t_data_table& tbl,
+        void fill_numeric_iter(const PyArrayObject* array, t_data_table& tbl,
             std::shared_ptr<t_column> col, const std::string& name,
             t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
 
-        void fill_datetime_iter(const py::array& array, t_data_table& tbl,
+        void fill_datetime_iter(const PyArrayObject* array, t_data_table& tbl,
             std::shared_ptr<t_column> col, const std::string& name,
             t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
 
-        void fill_bool_iter(const py::array& array, t_data_table& tbl,
+        void fill_bool_iter(const PyArrayObject* array, t_data_table& tbl,
             std::shared_ptr<t_column> col, const std::string& name,
             t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
 
@@ -169,7 +169,7 @@ namespace numpy {
          * Returns a `t_fill_status` enum indicating success or failure of the
          * copy operation.
          */
-        t_fill_status try_copy_array(const py::array& src,
+        t_fill_status try_copy_array(const PyArrayObject* src,
             std::shared_ptr<t_column> dest, t_dtype np_dtype, t_dtype type,
             const std::uint64_t offset);
 

@@ -238,7 +238,7 @@ namespace numpy {
         for (auto i = 0; i < nrows; ++i) {
             t_val item = m_accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -263,7 +263,7 @@ namespace numpy {
         for (auto i = 0; i < nrows; ++i) {
             t_val item = m_accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -304,7 +304,7 @@ namespace numpy {
         for (auto i = 0; i < nrows; ++i) {
             t_val item = m_accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -338,7 +338,7 @@ namespace numpy {
         for (auto i = 0; i < nrows; ++i) {
             t_val item = m_accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -440,7 +440,7 @@ namespace numpy {
         for (auto i = 0; i < nrows; ++i) {
             t_val item = m_accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {

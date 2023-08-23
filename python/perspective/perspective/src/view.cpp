@@ -31,12 +31,12 @@ namespace binding {
         } else if (type == DTYPE_DATE || type == DTYPE_TIME) {
             if (py::isinstance<py::str>(filter_term)) {
                 t_val parsed_date = date_parser.attr("parse")(filter_term);
-                return !parsed_date.is_none();
+                return parsed_date != Py_None;
             } else {
-                return !filter_term.is_none();
+                return filter_term != Py_None;
             }
         } else {
-            return !filter_term.is_none();
+            return filter_term != Py_None;
         }
     };
 

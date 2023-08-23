@@ -56,6 +56,8 @@
 #endif
 
 #ifdef PSP_ENABLE_PYTHON
+#include "Python.h"
+#include <numpy/ndarrayobject.h>
 // Define object serialization type
 #define PSP_OBJECT_TYPE PyObject*
 

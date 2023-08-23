@@ -46,7 +46,7 @@ t_pool::t_pool()
 
 t_val
 empty_callback() {
-    return py::none();
+    return Py_None;
 }
 
 t_pool::t_pool()
@@ -220,8 +220,14 @@ t_pool::notify_userspace(t_uindex port_id) {
 #if defined PSP_ENABLE_WASM && !defined PSP_ENABLE_PYTHON
     m_update_delegate.call<void>("_update_callback", port_id);
 #elif PSP_ENABLE_PYTHON
-    if (!m_update_delegate.is_none()) {
-        m_update_delegate.attr("_update_callback")(port_id);
+    if (m_update_delegate != Py_None) {
+        auto callback = PyObject_GetAttrString(m_update_delegate, "_update_callback");
+
+        PyObject* port_id_obj = PyLong_FromLong(port_id);
+        PyObject* tuple_args = PyTuple_New(1);
+        PyTuple_SetItem(tuple_args, 0, port_id_obj);
+        PyObject_Call(m_update_delegate, tuple_args, Py_None);
+        // m_update_delegate.attr("_update_callback")(port_id);
     }
 #endif
 }

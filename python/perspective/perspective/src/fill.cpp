@@ -33,14 +33,28 @@ namespace binding {
         t_uindex nrows = col->size();
 
         for (auto i = 0; i < nrows; ++i) {
-            if (!accessor.attr("_has_column")(i, name).cast<bool>()
-                && !is_limit) {
+            auto has_column_foo = PyObject_GetAttrString(accessor, "_has_column");
+            PyObject* i_obj = PyLong_FromLong(i);
+            PyObject* name_obj = PyUnicode_FromString(name.c_str());
+            PyObject* has_column_foo_args = PyTuple_New(2);
+            PyTuple_SetItem(has_column_foo_args, 0, i_obj);
+            PyTuple_SetItem(has_column_foo_args, 1, name_obj);
+            auto bool_result_obj = PyObject_Call(has_column_foo, has_column_foo_args, Py_None);
+
+            if ((!PyBool_Check(bool_result_obj) || bool_result_obj == Py_False) && !is_limit) {
                 continue;
             }
 
-            t_val item = accessor.attr("marshal")(cidx, i, type);
+            auto marshal_foo = PyObject_GetAttrString(accessor, "marshal");
+            PyObject* cidx_obj = PyLong_FromLong(cidx);
+            // PyObject* type_obj = // TODO
+            PyObject* marshal_args = PyTuple_New(3);
+            PyTuple_SetItem(marshal_args, 0, cidx_obj);
+            PyTuple_SetItem(marshal_args, 1, i_obj);
+            // PyTuple_SetItem(marshal_args, 2, type_obj); // TODO
+            auto t_val_obj = PyObject_Call(marshal_foo, marshal_args, Py_None);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -49,7 +63,7 @@ namespace binding {
                 continue;
             }
 
-            col->set_nth(i, item.cast<std::int64_t>());
+            col->set_nth(i, PyLong_AsLong(item));
         }
     }
 
@@ -67,7 +81,7 @@ namespace binding {
 
             t_val item = accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -98,7 +112,7 @@ namespace binding {
 
             t_val item = accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -127,7 +141,7 @@ namespace binding {
 
             t_val item = accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {
@@ -143,7 +157,7 @@ namespace binding {
     template <>
     void
     set_column_nth(std::shared_ptr<t_column> col, t_uindex idx, t_val value) {
-        if (value.is_none()) {
+        if (value == Py_None) {
             col->unset(idx);
             return;
         }
@@ -222,7 +236,7 @@ namespace binding {
 
             t_val item = accessor.attr("marshal")(cidx, i, type);
 
-            if (item.is_none()) {
+            if (item == Py_None) {
                 if (is_update) {
                     col->unset(i);
                 } else {

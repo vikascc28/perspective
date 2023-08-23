@@ -27,8 +27,8 @@ void
 t_column::object_copied<PSP_OBJECT_TYPE>(t_uindex ptr) const {
     // get what was there and incref if can
     if (ptr) {
-        py::handle handle = reinterpret_cast<PSP_OBJECT_TYPE>(ptr);
-        handle.inc_ref();
+        PyObject* obj = reinterpret_cast<PSP_OBJECT_TYPE>(ptr);
+        Py_XINCREF(obj);
     }
 }
 
@@ -37,8 +37,8 @@ void
 t_column::object_cleared<PSP_OBJECT_TYPE>(t_uindex ptr) const {
     // get what was there and decref if can
     if (ptr) {
-        py::handle handle = reinterpret_cast<PSP_OBJECT_TYPE>(ptr);
-        handle.dec_ref();
+        PyObject* obj = reinterpret_cast<PSP_OBJECT_TYPE>(ptr);
+        Py_XDECREF(obj);
     }
 }
 

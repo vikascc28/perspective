@@ -30,29 +30,47 @@ namespace binding {
         std::vector<std::string> names;
         if (format == 0) {
             // record
-            py::list data_list = data.cast<py::list>();
+            auto data_list_size = PyList_Size(data);
             std::int32_t max_check = 50;
 
-            if (data_list.size()) {
-                for (auto tup : data_list[0].cast<py::dict>()) {
-                    names.push_back(tup.first.cast<std::string>());
+            if (data_list_size > 0) {
+                // get first item in list, a dictionary
+                auto data_list_first_dict = PyList_GetItem(data, 0);
+
+                // get list of keys
+                auto item_keys = PyDict_Keys(data_list_first_dict);
+                auto item_size_keys = PyList_Size(item_keys);
+
+                for (auto int i = 0; i < item_size_keys; ++i) {
+                    // get key
+                    auto name_object = PyList_GetItem(i);
+                    std::string name = PyUnicode_AsUTF8(name_object);
+                    names.push_back(name);
                 }
             }
 
             std::int32_t check_index
-                = std::min(max_check, int32_t(data_list.size()));
+                = std::min(max_check, int32_t(data_list_size));
 
-            for (auto ix = 0; ix < check_index; ix++) {
-                py::dict next_dict = data_list[ix].cast<py::dict>();
+            for (auto ix = 1; ix < check_index; ix++) {
+                // get next item
+                auto data_list_first_dict = PyList_GetItem(data, ix);
+
+                // get list of keys
+                auto item_keys = PyDict_Keys(data_list_first_dict);
+                auto item_size_keys = PyList_Size(item_keys);
+
                 auto old_size = names.size();
 
-                for (auto tup : next_dict) {
-                    if (std::find(names.begin(), names.end(),
-                            tup.first.cast<std::string>())
-                        == names.end()) {
-                        names.push_back(tup.first.cast<std::string>());
-                    }
+                for (auto int i = 0; i < item_size_keys; ++i) {
+                    // get key
+                    auto name_object = PyList_GetItem(i);
+                    std::string name = PyUnicode_AsUTF8(name_object);
+                    names.push_back(name);
+                    if (std::find(names.begin(), names.end(), name) == names.end()) {
+                        names.push_back(name);
                 }
+
                 if (old_size != names.size()) {
                     if (max_check == 50) {
                         WARN("Data parse warning: Array data has inconsistent "
@@ -63,9 +81,13 @@ namespace binding {
                 }
             }
         } else if (format == 1 || format == 2) {
-            py::dict data_dict = data.cast<py::dict>();
-            for (auto tup : data_dict) {
-                names.push_back(tup.first.cast<std::string>());
+            auto dict_keys = PyDict_Keys(data_list_first_dict);
+            auto dict_size_keys = PyList_Size(item_keys);
+
+            for (auto i = 0; i < dict_size_keys; ++i) {
+                auto name_object = PyList_GetItem(i);
+                std::string name = PyUnicode_AsUTF8(name_object);
+                names.push_back(name);
             }
         }
         return names;
@@ -73,34 +95,42 @@ namespace binding {
 
     t_dtype
     infer_type(t_val x, t_val date_validator) {
-        std::string type_string
-            = x.get_type().attr("__name__").cast<std::string>();
+        auto type_name_obj = PyType_GetName(x);
+        std::string type_string = PyUnicode_AsUTF8(type_name_obj);
+        // std::string type_string
+        //     = x.get_type().attr("__name__").cast<std::string>();
         t_dtype t = t_dtype::DTYPE_STR;
 
         // If object provides its own type, use that
-        if (py::hasattr(x, "_psp_dtype_")) {
-            auto new_type = x.attr("_psp_dtype_")();
+        if (PyObject_HasAttrString(x, "_psp_dtype_")) {
+            auto new_type = PyObject_GetAttrString(x, "_psp_dtype_");
+            // auto new_type = x.attr("_psp_dtype_")();
 
-            if (py::hasattr(new_type, "__name__")) {
+            if (PyObject_HasAttrString(new_type, "__name__")) {
                 // If type is a class, get its name
-                type_string = new_type.attr("__name__").cast<std::string>();
+                type_name_obj = PyObject_GetAttrString(new_type, "__name__");
+                type_string = PyUnicode_AsUTF8(type_name_obj);
+                // type_string = new_type.attr("__name__").cast<std::string>();
 
             } else {
                 // Assume that the string is the type
-                type_string = new_type.cast<std::string>();
+                type_string = PyUnicode_AsUTF8(new_type);
+                // type_string = new_type.cast<std::string>();
             }
 
             // Extract representation if not storing as object
             if (type_string != "object") {
-                if (py::hasattr(x, "_psp_repr_")) {
-                    x = x.attr("_psp_repr_")();
+                if (PyObject_HasAttrString(x, "_psp_repr_")) {
+                    x = PyObject_GetAttrString(x, "_psp_repr_");
+                    // x = x.attr("_psp_repr_")();
                 } else {
-                    x = x.cast<py::str>();
+                    x = PyObject_Str(x);
+                    // x = x.cast<py::str>();
                 }
             }
         }
 
-        if (x.is_none()) {
+        if (x == Py_None) {
             t = t_dtype::DTYPE_NONE;
         } else if (py::isinstance<py::bool_>(x) || type_string == "bool") {
             // booleans are both instances of bool_ and int_ -  check for bool
@@ -149,7 +179,7 @@ namespace binding {
             // loop parameters differ slightly so rewrite the loop
             while (!inferredType.is_initialized() && i < 100
                 && i < data_list.size()) {
-                if (!data_list.is_none()) {
+                if (data_list != Py_None) {
                     if (!data_list[i].cast<py::dict>()[name].is_none()) {
                         inferredType = infer_type(
                             data_list[i].cast<py::dict>()[name].cast<t_val>(),

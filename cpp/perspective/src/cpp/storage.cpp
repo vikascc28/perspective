@@ -610,7 +610,7 @@ t_lstore::clone() const {
 }
 
 #ifdef PSP_ENABLE_PYTHON
-py::array
+PyArrayObject*
 t_lstore::_as_numpy(t_dtype dtype) {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
@@ -618,7 +618,7 @@ t_lstore::_as_numpy(t_dtype dtype) {
         dtype != DTYPE_STR, "as_numpy not implemented for string columns yet");
 
     // TODO
-    py::array result;
+    PyArrayObject* result;
     return result;
     // PSP_VERBOSE_ASSERT(rval, "Null array found!");
 }
