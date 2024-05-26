@@ -11,6 +11,7 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use perspective_client::{assert_table_api, assert_view_api};
 use perspective_server::Server;
@@ -108,6 +109,12 @@ fn pandas_to_arrow_bytes(py: Python, df: &PyAny) -> PyResult<Py<PyBytes>> {
 
 #[pyclass]
 #[derive(Clone)]
+pub struct PyAsyncSession {
+    pub client_id: u32,
+}
+
+#[pyclass]
+#[derive(Clone)]
 pub struct PyAsyncServer {
     pub server: Server,
 }
@@ -150,35 +157,15 @@ impl PyAsyncServer {
         py: Python<'a>,
         client_id: u32,
         data: Vec<u8>,
-        response_cb: Py<PyFunction>,
-    ) -> PyResult<&'a PyAny> {
+    ) -> PyResult<()> {
         let server = self.server.clone();
         server.handle_request(client_id, &data);
         Ok(())
     }
 
-    pub fn poll<'a>(&self, py: Python<'a>, response_cb: Py<PyFunction>) -> PyResult<&'a PyAny> {
-        let server = self.server.clone();
-        future_into_py(py, async move {
-            let batch = server.poll();
-            let res: PyResult<Vec<_>> = Python::with_gil(move |py| {
-                let python_context = pyo3_asyncio::tokio::get_current_locals(py)?;
-                let mut outs = vec![];
-                for (client_id, response) in batch {
-                    let fut = response_cb.call1(py, (client_id, PyBytes::new(py, &response)))?;
-                    let rust_future =
-                        pyo3_asyncio::into_future_with_locals(&python_context, fut.as_ref(py))?;
-                    outs.push(pyo3_asyncio::tokio::get_runtime().spawn(rust_future))
-                }
-                Ok(outs)
-            });
-
-            for out in res? {
-                out.await.expect("Failed joining future")?;
-            }
-
-            Ok(())
-        })
+    pub fn poll<'a>(&self, py: Python<'a>) -> PyResult<()> {
+        self.server.poll();
+        Ok(())
     }
 }
 
@@ -221,10 +208,11 @@ impl PyAsyncClient {
 }
 
 #[pyfunction]
-#[pyo3(name = "create_async_client", signature = (server = None))]
+#[pyo3(name = "create_async_client", signature = (server = None, client_id = None))]
 pub fn create_async_client(
     py: Python<'_>,
     server: Option<Py<PyAsyncServer>>,
+    client_id: Option<u32>,
 ) -> PyResult<&'_ PyAny> {
     let server = server.and_then(|x| {
         x.extract::<PyAsyncServer>(py)
@@ -234,7 +222,9 @@ pub fn create_async_client(
             .ok()
     });
 
-    future_into_py(py, async move { Ok(PyAsyncClient(PyClient::new(server))) })
+    future_into_py(py, async move {
+        Ok(PyAsyncClient(PyClient::new(server, client_id, None)))
+    })
 }
 
 #[pyclass]

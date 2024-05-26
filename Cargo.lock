@@ -1510,6 +1510,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
+name = "perspective"
+version = "2.10.1"
+dependencies = [
+ "perspective-client",
+ "perspective-server",
+ "tracing",
+]
+
+[[package]]
 name = "perspective-bootstrap"
 version = "0.0.0"
 dependencies = [
@@ -1601,6 +1610,7 @@ dependencies = [
  "futures",
  "perspective-client",
  "perspective-server",
+ "pollster",
  "pyo3",
  "pyo3-asyncio",
  "pyo3-build-config",
@@ -1710,6 +1720,12 @@ dependencies = [
  "rustversion",
  "thiserror",
 ]
+
+[[package]]
+name = "pollster"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22686f4785f02a4fcc856d3b3bb19bf6c8160d103f7a99cc258bddd0251dc7f2"
 
 [[package]]
 name = "portable-atomic"

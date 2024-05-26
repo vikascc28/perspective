@@ -36,6 +36,7 @@ use crate::client_async::PyAsyncServer;
 #[derive(Clone)]
 pub struct PyClient {
     client: Client,
+    loop_cb: Option<Py<PyFunction>>,
 }
 
 async fn process_message(server: Server, client: Client, client_id: u32, msg: Vec<u8>) {
@@ -186,7 +187,7 @@ impl PyClient {
             }
         });
 
-        PyClient { client }
+        PyClient { client, loop_cb }
     }
 
     pub async fn init(&self) -> PyResult<()> {
@@ -201,6 +202,7 @@ impl PyClient {
         name: Option<Py<PyString>>,
     ) -> PyResult<PyTable> {
         let client = self.client.clone();
+        let py_client = self.clone();
         let table = Python::with_gil(|py| {
             let mut options = TableInitOptions::default();
             options.name = name.map(|x| x.extract::<String>(py)).transpose()?;
@@ -223,14 +225,17 @@ impl PyClient {
         let table = table.await.into_pyerr()?;
         Ok(PyTable {
             table: Arc::new(Mutex::new(table)),
+            client: py_client,
         })
     }
 
     pub async fn open_table(&self, name: String) -> PyResult<PyTable> {
         let client = self.client.clone();
+        let py_client = self.clone();
         let table = client.open_table(name).await.into_pyerr()?;
         Ok(PyTable {
             table: Arc::new(Mutex::new(table)),
+            client: py_client,
         })
     }
 }
@@ -238,6 +243,7 @@ impl PyClient {
 #[derive(Clone)]
 pub struct PyTable {
     table: Arc<Mutex<Table>>,
+    client: PyClient,
 }
 
 assert_table_api!(PyTable);
@@ -272,11 +278,19 @@ impl PyTable {
     }
 
     pub async fn on_delete(&self, callback_py: Py<PyFunction>) -> PyResult<u32> {
+        let loop_cb = self.client.loop_cb.clone();
         let callback = {
             let callback_py = callback_py.clone();
             Box::new(move || {
-                Python::with_gil(|py| callback_py.call0(py))
-                    .expect("`on_delete()` callback failed");
+                Python::with_gil(|py| {
+                    if let Some(loop_cb) = loop_cb.as_ref() {
+                        loop_cb.call1(py, (&callback_py,))?;
+                    } else {
+                        callback_py.call0(py)?;
+                    }
+                    Ok(()) as PyResult<()>
+                })
+                .expect("`on_delete()` callback failed");
             })
         };
 
@@ -357,6 +371,7 @@ impl PyTable {
         let view = self.table.lock().await.view(config).await.into_pyerr()?;
         Ok(PyView {
             view: Arc::new(Mutex::new(view)),
+            client: self.client.clone(),
         })
     }
 }
@@ -364,6 +379,7 @@ impl PyTable {
 #[derive(Clone)]
 pub struct PyView {
     view: Arc<Mutex<View>>,
+    client: PyClient,
 }
 
 assert_view_api!(PyView);
@@ -424,9 +440,17 @@ impl PyView {
     pub async fn on_delete(&self, callback_py: Py<PyFunction>) -> PyResult<u32> {
         let callback = {
             let callback_py = callback_py.clone();
+            let loop_cb = self.client.loop_cb.clone();
             Box::new(move || {
-                Python::with_gil(|py| callback_py.call0(py))
-                    .expect("`on_delete()` callback failed");
+                let loop_cb = loop_cb.clone();
+                Python::with_gil(|py| {
+                    if let Some(loop_cb) = loop_cb.as_ref() {
+                        loop_cb.call1(py, (&callback_py,))
+                    } else {
+                        callback_py.call0(py)
+                    }
+                })
+                .expect("`on_delete()` callback failed");
             })
         };
 

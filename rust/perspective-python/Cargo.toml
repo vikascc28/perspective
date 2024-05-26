@@ -50,6 +50,7 @@ python-config-rs = "0.1.2"
 [dependencies]
 perspective-client = { version = "2.10.1", path = "../perspective-client" }
 perspective-server = { version = "2.10.1", path = "../perspective-server" }
+pollster = "0.3.0"
 extend = "1.1.2"
 futures = "0.3.28"
 pyo3 = { version = "0.20", features = ["extension-module", "serde"] }
