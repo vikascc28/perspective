@@ -18,14 +18,7 @@ import sys
 
 # LEGACY API
 
-import concurrent.futures
-# TODO: We shouldn't do this, but it's useful to fix tests atm.
-executor = concurrent.futures.ThreadPoolExecutor()
-
-def loop_cb(fn, *args):
-    executor.submit(fn, *args)
-
-sync_client = create_sync_client(loop_cb)
+sync_client = create_sync_client()
 
 # import asyncio
 # import threading
@@ -115,7 +108,7 @@ table_mod.Table =  sync_client.table
 sys.modules.setdefault("perspective.table", table_mod)
 
 Table = sync_client.table
-PerspectiveManager = create_async_client
+PerspectiveManager = create_sync_client
 
 async_client = create_async_client
 

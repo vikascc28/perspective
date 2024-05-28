@@ -50,7 +50,7 @@ class TestTableInfer(object):
         tbl = Table(bool_data)
         assert tbl.schema() == {"a": "boolean", "b": "boolean"}
         assert tbl.size() == 5
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "a": [True, True, True, True, True],
             "b": [False, False, False, False, False],
         }

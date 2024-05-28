@@ -155,9 +155,9 @@ class Util:
         """Return an integer timestamp based on a date/datetime object."""
         classname = obj.__class__.__name__
         if classname == "date":
-            return datetime(obj.year, obj.month, obj.day).timestamp()
+            return int(datetime(obj.year, obj.month, obj.day).timestamp() * 1000)
         elif classname == "datetime":
-            return obj.timestamp()
+            return int(obj.timestamp() * 1000)
         else:
             return -1
 

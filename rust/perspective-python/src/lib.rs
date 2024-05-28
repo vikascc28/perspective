@@ -57,7 +57,7 @@ fn perspective(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<client_async::PyAsyncServer>()?;
     // m.add_class::<client::PerspectivePyError>()?;
     m.add(
-        "PerspectiveCppError",
+        "PerspectivePyError",
         py.get_type::<client::PerspectivePyError>(),
     )?;
     // m.add_function(wrap_pyfunction!(init_tracing, m)?)?;

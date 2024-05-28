@@ -204,13 +204,13 @@ class TestToFormat(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict() == {"a": [1, 3], "b": [2, 4]}
+        assert view.to_columns() == {"a": [1, 3], "b": [2, 4]}
 
     def test_to_dict_float(self):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict() == {"a": [1.5, 3.5], "b": [2.5, 4.5]}
+        assert view.to_columns() == {"a": [1.5, 3.5], "b": [2.5, 4.5]}
 
     def test_to_dict_date(self):
         today = date.today()
@@ -218,26 +218,26 @@ class TestToFormat(object):
         data = [{"a": today, "b": 2}, {"a": today, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict() == {"a": [dt, dt], "b": [2, 4]}
+        assert view.to_columns() == {"a": [dt, dt], "b": [2, 4]}
 
     def test_to_dict_datetime(self):
         dt = datetime(2019, 3, 15, 20, 30, 59, 6000)
         data = [{"a": dt, "b": 2}, {"a": dt, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict() == {"a": [dt, dt], "b": [2, 4]}
+        assert view.to_columns() == {"a": [dt, dt], "b": [2, 4]}
 
     def test_to_dict_bool(self):
         data = [{"a": True, "b": False}, {"a": True, "b": False}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict() == {"a": [True, True], "b": [False, False]}
+        assert view.to_columns() == {"a": [True, True], "b": [False, False]}
 
     def test_to_dict_string(self):
         data = [{"a": "string1", "b": "string2"}, {"a": "string3", "b": "string4"}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "a": ["string1", "string3"],
             "b": ["string2", "string4"],
         }
@@ -246,19 +246,19 @@ class TestToFormat(object):
         data = [{"a": None, "b": None}, {"a": None, "b": None}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict() == {"a": [None, None], "b": [None, None]}
+        assert view.to_columns() == {"a": [None, None], "b": [None, None]}
 
     def test_to_dict_one(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"])
-        assert view.to_dict() == {"__ROW_PATH__": [[], [1]], "a": [2, 2], "b": [4, 4]}
+        assert view.to_columns() == {"__ROW_PATH__": [[], [1]], "a": [2, 2], "b": [4, 4]}
 
     def test_to_dict_two(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"])
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "__ROW_PATH__": [[], [1]],
             "2|a": [2, 2],
             "2|b": [4, 4],
@@ -268,7 +268,7 @@ class TestToFormat(object):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(split_by=["b"])
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "2|a": [1, 1],
             "2|b": [2, 2],
         }
@@ -277,19 +277,19 @@ class TestToFormat(object):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], columns=[])
-        assert view.to_dict() == {"__ROW_PATH__": [[], [1]]}
+        assert view.to_columns() == {"__ROW_PATH__": [[], [1]]}
 
     def test_to_dict_two_no_columns(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"], columns=[])
-        assert view.to_dict() == {"__ROW_PATH__": [[], [1]]}
+        assert view.to_columns() == {"__ROW_PATH__": [[], [1]]}
 
     def test_to_dict_column_only_no_columns(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(split_by=["b"], columns=[])
-        assert view.to_dict() == {}
+        assert view.to_columns() == {}
 
     # to_numpy
 

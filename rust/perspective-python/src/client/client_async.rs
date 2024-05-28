@@ -159,6 +159,8 @@ impl PyAsyncServer {
         data: Vec<u8>,
     ) -> PyResult<()> {
         let server = self.server.clone();
+        // TODO: Make this return a boolean for "should_poll" to determine whether we immediately
+        //       schedule a poll after this request.
         server.handle_request(client_id, &data);
         Ok(())
     }

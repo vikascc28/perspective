@@ -140,7 +140,7 @@ class TestPerspectiveManager(object):
             "args": [{"a": [1, 2, 3], "b": ["str1", "str2", "str3"]}],
         }
         manager._process(update_message, self.post)
-        assert manager._tables["table1"].view().to_dict() == {
+        assert manager._tables["table1"].view().to_columns() == {
             "a": [1, 2, 3],
             "b": ["str1", "str2", "str3"],
         }
@@ -167,7 +167,7 @@ class TestPerspectiveManager(object):
             "args": [[1, 2]],
         }
         manager._process(remove_message, self.post)
-        assert manager._tables["table1"].view().to_dict() == {"a": [3], "b": ["c"]}
+        assert manager._tables["table1"].view().to_columns() == {"a": [3], "b": ["c"]}
 
     def test_locked_manager_create_view(self):
         message = {"id": 1, "table_name": "table1", "view_name": "view1", "cmd": "view"}
@@ -197,7 +197,7 @@ class TestPerspectiveManager(object):
         table = Table(data)
         manager.host_table("table1", table)
         manager._process(message, self.post)
-        assert manager._views["view1"].to_dict() == {
+        assert manager._views["view1"].to_columns() == {
             "__ROW_PATH__": [[], [1], [2], [3]],
             "a": [6, 1, 2, 3],
             "b": [3, 1, 1, 1],
@@ -215,7 +215,7 @@ class TestPerspectiveManager(object):
         table = Table(data)
         manager.host_table("table1", table)
         manager._process(message, self.post)
-        assert manager._views["view1"].to_dict() == {
+        assert manager._views["view1"].to_columns() == {
             "__ROW_PATH__": [[], [1], [2], [3]],
             "a|a": [1, 1, None, None],
             "a|b": [1, 1, None, None],
@@ -1273,7 +1273,7 @@ class TestPerspectiveManager(object):
         table = Table({"a": [1, 2, 3]})
         manager.host_table("tbl", table)
         table.update({"a": [4, 5, 6]})
-        assert table.view().to_dict() == {"a": [1, 2, 3, 4, 5, 6]}
+        assert table.view().to_columns() == {"a": [1, 2, 3, 4, 5, 6]}
 
         def fake_queue_process(f, *args, **kwargs):
             s.set(s.get() + 1)
@@ -1318,12 +1318,12 @@ class TestPerspectiveManager(object):
         manager2.set_loop_callback(fake_queue_process)
 
         table.update({"a": [4, 5, 6]})
-        assert table.view().to_dict() == {"a": [1, 2, 3, 4, 5, 6]}
+        assert table.view().to_columns() == {"a": [1, 2, 3, 4, 5, 6]}
 
         table2.update({"a": [7, 8, 9]})
         table.update({"a": [7, 8, 9]})
 
-        assert table.view().to_dict() == {"a": [1, 2, 3, 4, 5, 6, 7, 8, 9]}
-        assert table2.view().to_dict() == {"a": [1, 2, 3, 7, 8, 9]}
+        assert table.view().to_columns() == {"a": [1, 2, 3, 4, 5, 6, 7, 8, 9]}
+        assert table2.view().to_columns() == {"a": [1, 2, 3, 7, 8, 9]}
         assert s.get() == 0
         assert s2.get() == 1

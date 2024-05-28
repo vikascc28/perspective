@@ -88,6 +88,12 @@ impl PySyncTable {
         table.on_delete(callback).block_on()
     }
 
+    #[doc = include_str!("../../docs/table/remove.md")]
+    pub fn remove(&self, input: Py<PyAny>) -> PyResult<()> {
+        let table = self.0.clone();
+        table.remove(input).block_on()
+    }
+
     #[doc = include_str!("../../docs/table/remove_delete.md")]
     fn remove_delete(&self, callback: Py<PyFunction>) -> PyResult<()> {
         let table = self.0.clone();

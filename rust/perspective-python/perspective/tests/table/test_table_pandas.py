@@ -72,7 +72,7 @@ class TestTablePandas(object):
         tbl = Table(data)
         assert tbl.size() == 10
         assert tbl.schema() == {"index": "date", "0": "float"}
-        assert tbl.view().to_dict()["index"] == [
+        assert tbl.view().to_columns()["index"] == [
             datetime(2000, 1, 1),
             datetime(2000, 1, 2),
             datetime(2000, 1, 3),
@@ -90,7 +90,7 @@ class TestTablePandas(object):
         tbl = Table(data)
         assert tbl.size() == 10
         assert tbl.schema() == {"index": "datetime", "0": "float"}
-        assert tbl.view().to_dict()["index"] == [
+        assert tbl.view().to_columns()["index"] == [
             datetime(2000, 1, 1, 0, 0, 0),
             datetime(2000, 1, 1, 1, 0, 0),
             datetime(2000, 1, 1, 2, 0, 0),
@@ -116,7 +116,7 @@ class TestTablePandas(object):
             "d": "float",
         }
 
-        assert tbl.view().to_dict()["index"] == [
+        assert tbl.view().to_columns()["index"] == [
             datetime(2000, 1, 31),
             datetime(2000, 2, 29),
             datetime(2000, 3, 31),
@@ -142,7 +142,7 @@ class TestTablePandas(object):
             "d": "float",
         }
 
-        assert tbl.view().to_dict()["index"] == [
+        assert tbl.view().to_columns()["index"] == [
             datetime(2000, 1, 1, 0, 0, 0),
             datetime(2000, 1, 1, 1, 0, 0),
             datetime(2000, 1, 1, 2, 0, 0),
@@ -168,7 +168,7 @@ class TestTablePandas(object):
             "d": "float",
         }
 
-        assert tbl.view().to_dict()["index"] == [
+        assert tbl.view().to_columns()["index"] == [
             datetime(2000, 1, 1, 0, 0, 0),
             datetime(2001, 1, 1, 0, 0, 0),
             datetime(2002, 1, 1, 0, 0, 0),
@@ -194,7 +194,7 @@ class TestTablePandas(object):
             "d": "float",
         }
 
-        assert tbl.view().to_dict()["index"] == [
+        assert tbl.view().to_columns()["index"] == [
             datetime(2000, 3, 31, 0, 0, 0),
             datetime(2000, 6, 30, 0, 0, 0),
             datetime(2000, 9, 30, 0, 0, 0),
@@ -214,7 +214,7 @@ class TestTablePandas(object):
             "d": "float",
         }
 
-        assert tbl.view().to_dict()["index"] == [
+        assert tbl.view().to_columns()["index"] == [
             datetime(2000, 1, 1, 0, 0),
             datetime(2000, 1, 1, 0, 1),
             datetime(2000, 1, 1, 0, 2),
@@ -235,7 +235,7 @@ class TestTablePandas(object):
             "d": "float",
         }
 
-        assert tbl.view().to_dict()["index"][:5] == [
+        assert tbl.view().to_columns()["index"][:5] == [
             datetime(2000, 1, 1),
             datetime(2000, 2, 1),
             datetime(2000, 3, 1),
@@ -257,7 +257,7 @@ class TestTablePandas(object):
         tbl = Table(df)
         assert tbl.size() == 4
         assert tbl.schema() == {"index": "integer", "a": "datetime"}
-        assert tbl.view().to_dict()["a"] == [
+        assert tbl.view().to_columns()["a"] == [
             datetime(2019, 1, 1),
             datetime(2019, 4, 1),
             datetime(2019, 7, 1),
@@ -269,35 +269,35 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": data})
         table = Table({"a": "integer"})
         table.update(df)
-        assert table.view().to_dict()["a"] == data
+        assert table.view().to_columns()["a"] == data
 
     def test_table_pandas_from_schema_bool(self):
         data = [True, False, True, False]
         df = pd.DataFrame({"a": data})
         table = Table({"a": "boolean"})
         table.update(df)
-        assert table.view().to_dict()["a"] == data
+        assert table.view().to_columns()["a"] == data
 
     def test_table_pandas_from_schema_bool_str(self):
         data = ["True", "False", "True", "False"]
         df = pd.DataFrame({"a": data})
         table = Table({"a": "boolean"})
         table.update(df)
-        assert table.view().to_dict()["a"] == [True, False, True, False]
+        assert table.view().to_columns()["a"] == [True, False, True, False]
 
     def test_table_pandas_from_schema_float(self):
         data = [None, 1.5, None, 2.5, None, 3.5, 4.5]
         df = pd.DataFrame({"a": data})
         table = Table({"a": "float"})
         table.update(df)
-        assert table.view().to_dict()["a"] == data
+        assert table.view().to_columns()["a"] == data
 
     def test_table_pandas_from_schema_float_all_nan(self):
         data = [np.nan, np.nan, np.nan, np.nan]
         df = pd.DataFrame({"a": data})
         table = Table({"a": "float"})
         table.update(df)
-        assert table.view().to_dict()["a"] == [None, None, None, None]
+        assert table.view().to_columns()["a"] == [None, None, None, None]
 
     def test_table_pandas_from_schema_float_to_int(self):
         data = [None, 1.5, None, 2.5, None, 3.5, 4.5]
@@ -305,21 +305,21 @@ class TestTablePandas(object):
         table = Table({"a": "integer"})
         table.update(df)
         # truncates decimal
-        assert table.view().to_dict()["a"] == [None, 1, None, 2, None, 3, 4]
+        assert table.view().to_columns()["a"] == [None, 1, None, 2, None, 3, 4]
 
     def test_table_pandas_from_schema_int_to_float(self):
         data = [None, 1, None, 2, None, 3, 4]
         df = pd.DataFrame({"a": data})
         table = Table({"a": "float"})
         table.update(df)
-        assert table.view().to_dict()["a"] == [None, 1.0, None, 2.0, None, 3.0, 4.0]
+        assert table.view().to_columns()["a"] == [None, 1.0, None, 2.0, None, 3.0, 4.0]
 
     def test_table_pandas_from_schema_date(self):
         data = [date(2019, 8, 15), None, date(2019, 8, 16)]
         df = pd.DataFrame({"a": data})
         table = Table({"a": "date"})
         table.update(df)
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 8, 15),
             None,
             datetime(2019, 8, 16),
@@ -335,7 +335,7 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": data})
         table = Table({"a": "datetime"})
         table.update(df)
-        assert table.view().to_dict()["a"] == data
+        assert table.view().to_columns()["a"] == data
 
     def test_table_pandas_from_schema_datetime_timestamp_s(self, util):
         data = [
@@ -347,7 +347,7 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": data})
         table = Table({"a": "datetime"})
         table.update(df)
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 7, 11, 12, 30, 5),
             None,
             datetime(2019, 7, 11, 13, 30, 5),
@@ -365,7 +365,7 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": data})
         table = Table({"a": "datetime"})
         table.update(df)
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 7, 11, 12, 30, 5),
             None,
             datetime(2019, 7, 11, 13, 30, 5),
@@ -377,13 +377,13 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": data})
         table = Table({"a": "string"})
         table.update(df)
-        assert table.view().to_dict()["a"] == data
+        assert table.view().to_columns()["a"] == data
 
     def test_table_pandas_none(self):
         data = [None, None, None]
         df = pd.DataFrame({"a": data})
         table = Table(df)
-        assert table.view().to_dict()["a"] == data
+        assert table.view().to_columns()["a"] == data
 
     def test_table_pandas_symmetric_table(self):
         # make sure that updates are symmetric to table creation
@@ -391,7 +391,7 @@ class TestTablePandas(object):
         t1 = Table(df)
         t2 = Table({"a": "integer", "b": "float"})
         t2.update(df)
-        assert t1.view().to_dict() == {
+        assert t1.view().to_columns() == {
             "index": [0, 1, 2, 3],
             "a": [1, 2, 3, 4],
             "b": [1.5, 2.5, 3.5, 4.5],
@@ -408,7 +408,7 @@ class TestTablePandas(object):
         t2.update(df)
         t2.update(df)
 
-        assert t1.view().to_dict() == {
+        assert t1.view().to_columns() == {
             "index": [0, 1, 2, 3, 0, 1, 2, 3],
             "a": [1, 2, 3, 4, 1, 2, 3, 4],
             "b": [1.5, 2.5, 3.5, 4.5, 1.5, 2.5, 3.5, 4.5],
@@ -438,9 +438,9 @@ class TestTablePandas(object):
 
         assert t1.schema() == t2.schema()
 
-        out2 = t2.view().to_dict()
+        out2 = t2.view().to_columns()
 
-        assert t1.view().to_dict() == out2
+        assert t1.view().to_columns() == out2
 
     # dtype=object should have correct inferred types
 
@@ -448,13 +448,13 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": np.array([1, 2, None, 2, None, 3, 4], dtype=object)})
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "integer"}
-        assert table.view().to_dict()["a"] == [1, 2, None, 2, None, 3, 4]
+        assert table.view().to_columns()["a"] == [1, 2, None, 2, None, 3, 4]
 
     def test_table_pandas_object_to_float(self):
         df = pd.DataFrame({"a": np.array([None, 1, None, 2, None, 3, 4], dtype=object)})
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "integer"}
-        assert table.view().to_dict()["a"] == [None, 1.0, None, 2.0, None, 3.0, 4.0]
+        assert table.view().to_columns()["a"] == [None, 1.0, None, 2.0, None, 3.0, 4.0]
 
     def test_table_pandas_object_to_bool(self):
         df = pd.DataFrame(
@@ -462,7 +462,7 @@ class TestTablePandas(object):
         )
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "boolean"}
-        assert table.view().to_dict()["a"] == [True, False, True, False, True, False]
+        assert table.view().to_columns()["a"] == [True, False, True, False, True, False]
 
     def test_table_pandas_object_to_date(self):
         df = pd.DataFrame(
@@ -470,7 +470,7 @@ class TestTablePandas(object):
         )
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "date"}
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 7, 11),
             datetime(2019, 7, 12),
             None,
@@ -491,7 +491,7 @@ class TestTablePandas(object):
         )
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "datetime"}
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 7, 11, 1, 2, 3),
             datetime(2019, 7, 12, 1, 2, 3),
             None,
@@ -501,7 +501,7 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": np.array(["abc", "def", None, "ghi"], dtype=object)})
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "string"}
-        assert table.view().to_dict()["a"] == ["abc", "def", None, "ghi"]
+        assert table.view().to_columns()["a"] == ["abc", "def", None, "ghi"]
 
     # Type matching
 
@@ -512,7 +512,7 @@ class TestTablePandas(object):
 
         table.update(df)
 
-        assert table.view().to_dict() == {
+        assert table.view().to_columns() == {
             "a": [1.5, 2.5, 3.5, 4.5],
             "b": [1.0, 2.0, 3.0, 4.0],
         }
@@ -524,7 +524,7 @@ class TestTablePandas(object):
 
         table.update(df)
 
-        assert table.view().to_dict() == {"a": [1, 2, 3, 4, 1, 2, 3, 4]}
+        assert table.view().to_columns() == {"a": [1, 2, 3, 4, 1, 2, 3, 4]}
 
     def test_table_pandas_update_int64_with_float(self):
         df = pd.DataFrame({"a": [1.5, 2.5, 3.5, 4.5]})
@@ -533,7 +533,7 @@ class TestTablePandas(object):
 
         table.update(df)
 
-        assert table.view().to_dict()["a"] == [1, 2, 3, 4, 1, 2, 3, 4]
+        assert table.view().to_columns()["a"] == [1, 2, 3, 4, 1, 2, 3, 4]
 
     def test_table_pandas_update_date_schema_with_datetime(self):
         df = pd.DataFrame({"a": np.array([date(2019, 7, 11)])})
@@ -544,7 +544,7 @@ class TestTablePandas(object):
 
         assert table.schema() == {"a": "date"}
 
-        assert table.view().to_dict() == {
+        assert table.view().to_columns() == {
             "a": [int(datetime(2019, 7, 11).timestamp() * 1000)]
         }
 
@@ -557,7 +557,7 @@ class TestTablePandas(object):
 
         assert table.schema() == {"a": "datetime"}
 
-        assert table.view().to_dict() == {
+        assert table.view().to_columns() == {
             "a": [int(datetime(2019, 7, 11, 0, 0).timestamp() * 1000)]
         }
 
@@ -572,7 +572,7 @@ class TestTablePandas(object):
         ]
         df = pd.DataFrame({"a": data})
         table = Table(df)
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 7, 11, 12, 30, 5),
             None,
             datetime(2019, 7, 11, 13, 30, 5),
@@ -588,7 +588,7 @@ class TestTablePandas(object):
         ]
         df = pd.DataFrame({"a": np.array(data, dtype="datetime64[ns]")})
         table = Table(df)
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 7, 11, 12, 30, 5),
             None,
             datetime(2019, 7, 11, 13, 30, 5),
@@ -606,7 +606,7 @@ class TestTablePandas(object):
         df2 = pd.DataFrame({"a": data})
         table = Table(df)
         table.update(df2)
-        assert table.view().to_dict()["a"] == [
+        assert table.view().to_columns()["a"] == [
             datetime(2019, 7, 11, 12, 30, 5),
             None,
             datetime(2019, 7, 11, 13, 30, 5),
@@ -623,19 +623,19 @@ class TestTablePandas(object):
         data = [np.nan, np.nan, np.nan, np.nan]
         df = pd.DataFrame({"a": data})
         table = Table(df)
-        assert table.view().to_dict()["a"] == [None, None, None, None]
+        assert table.view().to_columns()["a"] == [None, None, None, None]
 
     def test_table_pandas_int_nan(self):
         data = [np.nan, 1, np.nan, 2]
         df = pd.DataFrame({"a": data})
         table = Table(df)
-        assert table.view().to_dict()["a"] == [None, 1, None, 2]
+        assert table.view().to_columns()["a"] == [None, 1, None, 2]
 
     def test_table_pandas_float_nan(self):
         data = [np.nan, 1.5, np.nan, 2.5]
         df = pd.DataFrame({"a": data})
         table = Table(df)
-        assert table.view().to_dict()["a"] == [None, 1.5, None, 2.5]
+        assert table.view().to_columns()["a"] == [None, 1.5, None, 2.5]
 
     def test_table_read_nan_int_col(self):
         data = pd.DataFrame(
@@ -648,7 +648,7 @@ class TestTablePandas(object):
             "int": "float",
         }  # np.nan is float type - ints convert to floats when filled in
         assert tbl.size() == 3
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1, 2],
             "str": ["abc", None, "def"],
             "int": [None, 1.0, 2.0],
@@ -665,7 +665,7 @@ class TestTablePandas(object):
             "float": "float",
         }  # can only promote to string or float
         assert tbl.size() == 3
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1, 2],
             "str": [None, "abc", None],
             "float": [None, 1.5, 2.5],
@@ -684,7 +684,7 @@ class TestTablePandas(object):
         }
         assert tbl.size() == 3
         # np.nans are always serialized as None
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1, 2],
             "bool": [None, "True", None],
             "bool2": [False, None, True],
@@ -701,7 +701,7 @@ class TestTablePandas(object):
             "date": "string",
         }  # can only promote to string or float
         assert tbl.size() == 2
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
             "date": [None, "2019-07-11"],
@@ -721,7 +721,7 @@ class TestTablePandas(object):
             "datetime": "datetime",
         }  # can only promote to string or float
         assert tbl.size() == 2
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
             "datetime": [None, datetime(2019, 7, 11, 11, 0)],
@@ -740,7 +740,7 @@ class TestTablePandas(object):
             "datetime": "datetime",
         }  # can only promote to string or float
         assert tbl.size() == 2
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
             "datetime": [None, datetime(2019, 7, 11, 11, 0)],
@@ -757,7 +757,7 @@ class TestTablePandas(object):
             "datetime": "datetime",
         }  # can only promote to string or float
         assert tbl.size() == 2
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
             "datetime": [None, datetime(2019, 7, 11)],
@@ -777,7 +777,7 @@ class TestTablePandas(object):
             "datetime": "datetime",
         }  # can only promote to string or float
         assert tbl.size() == 2
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
             "datetime": [None, datetime(2019, 7, 11, 11, 0)],
@@ -797,7 +797,7 @@ class TestTablePandas(object):
             "datetime": "datetime",
         }  # can only promote to string or float
         assert tbl.size() == 2
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
             "datetime": [None, datetime(2019, 7, 11, 10, 30, 55)],
@@ -810,7 +810,7 @@ class TestTablePandas(object):
         tbl = Table(data)
         assert tbl.schema() == {"index": "integer", "str": "string", "int": "integer"}
         assert tbl.size() == 3
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1, 2],
             "str": [None, None, "abc"],
             "int": [1, 2, 3],
@@ -823,7 +823,7 @@ class TestTablePandas(object):
         tbl = Table(data)
         assert tbl.schema() == {"index": "integer", "str": "string", "float": "float"}
         assert tbl.size() == 3
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "index": [0, 1, 2],
             "str": ["abc", None, "ghi"],
             "float": [None, 2, None],
@@ -946,7 +946,7 @@ class TestTablePandas(object):
         assert table.schema() == {"index": "integer", "a": "string", "b": "string"}
 
         view_df = view.to_df()
-        assert view_df.to_dict() == {
+        assert view_df.to_columns() == {
             "index": {0: 0, 1: 1},
             "a": {0: "aa", 1: "bbb"},
             "b": {0: "dddd", 1: "dd"},

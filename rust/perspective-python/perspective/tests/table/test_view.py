@@ -22,7 +22,7 @@ from pytest import approx, mark, raises
 def compare_delta(received, expected):
     """Compare an arrow-serialized row delta by constructing a Table."""
     tbl = Table(received)
-    assert tbl.view().to_dict() == expected
+    assert tbl.view().to_columns() == expected
 
 
 class TestView(object):
@@ -290,7 +290,7 @@ class TestView(object):
         assert view.column_paths() == order
 
         # check that default aggregates have been applied
-        result = view.to_dict()
+        result = view.to_columns()
         assert result["b"] == [6, 2, 4]
         assert result["d"] == [10, 4, 6]
 
@@ -305,13 +305,13 @@ class TestView(object):
         data = {"a": [datetime(2019, 7, 11, 12, 30)], "b": [1]}
         tbl = Table(data)
         view = tbl.view(group_by=["a"])
-        data = view.to_dict()
+        data = view.to_columns()
 
         for rp in data["__ROW_PATH__"]:
             if len(rp) > 0:
                 assert rp[0] == int(datetime(2019, 7, 11, 12, 30).timestamp() * 1000)
 
-        assert tbl.view().to_dict() == {"a": [int(datetime(2019, 7, 11, 12, 30).timestamp() * 1000)], "b": [1]}
+        assert tbl.view().to_columns() == {"a": [int(datetime(2019, 7, 11, 12, 30).timestamp() * 1000)], "b": [1]}
 
     def test_view_split_by_datetime_names_utc(self):
         """Tests column paths for datetimes in UTC. Timezone-related tests are
@@ -450,7 +450,7 @@ class TestView(object):
         table = Table(data)
         view = table.view(aggregates={"x": "var"}, group_by=["y"])
 
-        result = view.to_dict()
+        result = view.to_columns()
         expected = np.var(data["x"])
 
         assert result["x"] == approx([expected, expected])
@@ -810,7 +810,7 @@ class TestView(object):
         table = Table(data)
         view = table.view(aggregates={"x": "stddev"}, group_by=["y"])
 
-        result = view.to_dict()
+        result = view.to_columns()
         expected = np.std(data["x"])
 
         assert result["x"] == approx([expected, expected])
@@ -1224,7 +1224,7 @@ class TestView(object):
             sort=[["w", "asc"]],
             aggregates={"w": "avg", "x": "unique"},
         )
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "__ROW_PATH__": [
                 [],
                 ["c"],
@@ -1253,7 +1253,7 @@ class TestView(object):
             sort=[["w", "asc"]],
             aggregates={"w": "sum", "x": "unique"},
         )
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "__ROW_PATH__": [
                 [],
                 ["c"],
@@ -1282,7 +1282,7 @@ class TestView(object):
             sort=[["w", "asc"]],
             aggregates={"w": "unique", "x": "unique"},
         )
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "__ROW_PATH__": [
                 [],
                 ["c"],
@@ -1695,7 +1695,7 @@ class TestView(object):
 
         tbl = Table(data)
         view = tbl.view(group_by=["a"])
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "__ROW_PATH__": [[], [1], [3]],
             "a": [4, 1, 3],
             "b": [6, 2, 4],
@@ -1805,7 +1805,7 @@ class TestView(object):
 
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"])
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "__ROW_PATH__": [[], [1], [3]],
             "2|a": [1, 1, None],
             "2|b": [2, 2, None],
@@ -1872,7 +1872,7 @@ class TestView(object):
 
         tbl = Table(data)
         view = tbl.view(split_by=["b"])
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "2|a": [1, None],
             "2|b": [2, None],
             "4|a": [None, 3],
@@ -1900,7 +1900,7 @@ class TestView(object):
 
         tbl = Table(data, index="a")
         view = tbl.view(split_by=["b"])
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "2|a": [1, None],
             "2|b": [2, None],
             "5|a": [None, 3],

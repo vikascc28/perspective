@@ -497,7 +497,7 @@ class TestViewExpression(object):
             table.update(data())
 
         assert table.size() == 300
-        result = view.to_dict()
+        result = view.to_columns()
         assert result["123"] == [123 for _ in range(300)]
 
     def test_view_streaming_expression_limit(self):
@@ -511,7 +511,7 @@ class TestViewExpression(object):
             table.update(data())
 
         assert table.size() == 50
-        result = view.to_dict()
+        result = view.to_columns()
         assert result["123"] == [123 for _ in range(50)]
 
     def test_view_streaming_expression_one(self):
@@ -612,8 +612,8 @@ class TestViewExpression(object):
             "computed": "float",
         }
 
-        assert view.to_dict()["computed"] == [6, 8, 10, 12]
-        assert view2.to_dict()["computed"] == [5, 12, 21, 32]
+        assert view.to_columns()["computed"] == [6, 8, 10, 12]
+        assert view2.to_columns()["computed"] == [5, 12, 21, 32]
 
     def test_view_expression_multiple_views_with_the_same_alias_pivoted(
         self,
@@ -634,8 +634,8 @@ class TestViewExpression(object):
             "computed": "string",
         }
 
-        result = view.to_dict()
-        result2 = view2.to_dict()
+        result = view.to_columns()
+        result2 = view2.to_columns()
 
         assert result["__ROW_PATH__"] == [[], [6], [8], [10], [12]]
         assert result2["__ROW_PATH__"] == [[], ["abc def"]]
@@ -695,8 +695,8 @@ class TestViewExpression(object):
             "computed4": "datetime",
         }
 
-        result = view.to_dict()
-        result2 = view2.to_dict()
+        result = view.to_columns()
+        result2 = view2.to_columns()
 
         assert result["computed"] == [6.5, 8.5, 10.5, 12.5]
         assert result2["computed"] == ["A", "B", "C", "D"]
@@ -1439,7 +1439,7 @@ class TestViewExpression(object):
             "computed6": "integer",
         }
 
-        result = view.to_dict()
+        result = view.to_columns()
 
         assert result["computed"] == [2147483648]
         assert result["computed2"] == [-2147483649]
@@ -1479,7 +1479,7 @@ class TestViewExpression(object):
             "computed7": "float",
         }
 
-        result = view.to_dict()
+        result = view.to_columns()
 
         seconds_timestamp = mktime(dt.timetuple()) + dt.microsecond / 1000000.0
         ms_timestamp = int(seconds_timestamp * 1000)
@@ -1501,7 +1501,7 @@ class TestViewExpression(object):
             }
         )
         assert view.expression_schema() == {"computed": date, "computed2": "date"}
-        result = view.to_dict()
+        result = view.to_columns()
         assert result["computed"] == [int(datetime(2020, 5, 30).timestamp() * 1000)]
         assert result["computed2"] == [int(datetime(1997, 8, 31).timestamp() * 1000)]
 
@@ -1513,14 +1513,14 @@ class TestViewExpression(object):
         ms_timestamp = int(seconds_timestamp * 1000)
         view = table.view(expressions={"computed": "datetime({})".format(ms_timestamp)})
         assert view.expression_schema() == {"computed": "datetime"}
-        result = view.to_dict()
+        result = view.to_columns()
         assert result["computed"] == [int(datetime(2015, 11, 29, 23, 59, 59).timestamp() * 1000)]
 
     def test_view_datetime_expression_roundtrip(self):
         table = Table({"x": [datetime(2015, 11, 29, 23, 59, 59)]})
         view = table.view(expressions={"computed": 'datetime(float("x"))'})
         assert view.expression_schema() == {"computed": "datetime"}
-        result = view.to_dict()
+        result = view.to_columns()
         assert result["computed"] == [int(datetime(2015, 11, 29, 23, 59, 59).timestamp() * 1000)]
 
     def test_view_string_expression(self):
@@ -1562,7 +1562,7 @@ class TestViewExpression(object):
             "computed6": "string",
             "computed7": "string",
         }
-        result = view.to_dict()
+        result = view.to_columns()
         assert result["computed"] == ["2020-05-30", "2021-07-13"]
         assert result["computed2"] == [
             "2015-11-29 23:59:59.000",

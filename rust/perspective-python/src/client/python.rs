@@ -24,6 +24,7 @@ use perspective_client::{
     UpdateOptions, View, ViewWindow,
 };
 use perspective_server::Server;
+use pollster::FutureExt as _;
 use pyo3::create_exception;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::PyErr_BadArgument;
@@ -35,15 +36,55 @@ use crate::client_async::PyAsyncServer;
 
 #[derive(Clone)]
 pub struct PyClient {
-    client: Client,
-    loop_cb: Option<Py<PyFunction>>,
+    // TODO: un-public these
+    pub client: Client,
+    // TODO: Make this non-optional and default to synchronous dispatch
+    pub loop_cb: Option<Py<PyFunction>>,
 }
 
-async fn process_message(server: Server, client: Client, client_id: u32, msg: Vec<u8>) {
+#[pyclass]
+pub struct BoxedPyFn(Box<dyn Fn() + 'static + Send + Sync>);
+
+impl BoxedPyFn {
+    pub fn new<F: Fn() + 'static + Send + Sync>(f: F) -> Self {
+        BoxedPyFn(Box::new(f))
+    }
+}
+
+#[pymethods]
+impl BoxedPyFn {
+    fn __call__(&self) {
+        (self.0)();
+    }
+}
+
+async fn process_message(
+    server: Server,
+    client: Client,
+    // TOOD: DON'T BE OPTIONAL
+    loop_cb: Option<Py<PyFunction>>,
+    client_id: u32,
+    msg: Vec<u8>,
+) {
     let batch = server.handle_request(client_id, &msg);
     for (_client_id, response) in batch {
         client.handle_response(&response).await.unwrap()
     }
+    if let Some(loop_cb) = loop_cb.as_ref() {
+        let fun = BoxedPyFn::new(move || {
+            for (_client_id, response) in server.poll() {
+                client.handle_response(&response).block_on().unwrap()
+            }
+        });
+        Python::with_gil(move |py| loop_cb.call1(py, (fun.into_py(py),)))
+            // TODO: Make this entire function fallible
+            .expect("Unhandled exception in loop callback");
+    } else {
+        for (_client_id, response) in server.poll() {
+            client.handle_response(&response).await.unwrap()
+        }
+    }
+    // )
 }
 
 #[extend::ext]
@@ -180,10 +221,12 @@ impl PyClient {
     ) -> Self {
         let server = server.map(|x| x.server).unwrap_or_default();
         let client_id = client_id.unwrap_or_else(|| server.new_session());
+
         let client = Client::new({
+            let loop_cb = loop_cb.clone();
             move |client, msg| {
-                clone!(server, client, msg);
-                process_message(server, client, client_id, msg)
+                clone!(server, client, msg, loop_cb);
+                process_message(server, client, loop_cb, client_id, msg)
             }
         });
 
@@ -338,7 +381,11 @@ impl PyTable {
         let table = self.table.lock().await;
         let table_data = Python::with_gil(|py| UpdateData::from_py(py, &input))?;
         let options = UpdateOptions { format, port_id };
-        table.update(table_data, options).await.into_pyerr()
+        table.update(table_data, options).await.into_pyerr()?;
+        if let Some(loop_cb) = self.client.loop_cb.as_ref() {
+            // loop_cb.call0().expect("loop_cb failed");
+        }
+        Ok(())
     }
 
     pub async fn validate_expressions(

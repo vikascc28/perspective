@@ -58,7 +58,7 @@ class TestUpdate(object):
         view = tbl.view()
         tbl.update("a,b\nxyz,123\ndef,100000000")
 
-        assert view.to_dict() == {"a": ["xyz", "def"], "b": [123, 100000000]}
+        assert view.to_columns() == {"a": ["xyz", "def"], "b": [123, 100000000]}
 
     def test_update_csv_indexed(self):
         tbl = Table({"a": "string", "b": "float"}, index="a")
@@ -66,11 +66,11 @@ class TestUpdate(object):
         view = tbl.view()
         tbl.update("a,b\nxyz,1.23456718\ndef,100000000.1")
 
-        assert view.to_dict() == {"a": ["def", "xyz"], "b": [100000000.1, 1.23456718]}
+        assert view.to_columns() == {"a": ["def", "xyz"], "b": [100000000.1, 1.23456718]}
 
         tbl.update("a,b\nxyz,0.00000001\ndef,1234.5678\nefg,100.2")
 
-        assert view.to_dict() == {
+        assert view.to_columns() == {
             "a": ["def", "efg", "xyz"],
             "b": [1234.5678, 100.2, 0.00000001],
         }
@@ -250,7 +250,7 @@ class TestUpdate(object):
         tbl = Table({"a": "boolean", "b": "boolean"})
         tbl.update(bool_data)
         assert tbl.size() == 5
-        assert tbl.view().to_dict() == {
+        assert tbl.view().to_columns() == {
             "a": [True, True, True, True, True],
             "b": [False, False, False, False, False],
         }
@@ -260,7 +260,7 @@ class TestUpdate(object):
         tbl = Table({"a": "boolean", "b": "boolean"})
         tbl.update(bool_data)
         assert tbl.size() == 2
-        assert tbl.view().to_dict() == {"a": [True, True], "b": [False, False]}
+        assert tbl.view().to_columns() == {"a": [True, True], "b": [False, False]}
 
     # dates and datetimes
     def test_update_date(self):

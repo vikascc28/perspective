@@ -1599,7 +1599,7 @@ write_scalar(
                 t_date date_val = scalar.get<t_date>();
                 tm t = date_val.get_tm();
                 time_t epoch_delta = mktime(&t);
-                writer.Double(epoch_delta * 1000);
+                writer.Int64(epoch_delta * 1000);
             }
             break;
         }

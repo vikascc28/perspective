@@ -16,7 +16,8 @@ from .perspective import *
 from .core.exception import PerspectiveError
 
 
-from .legacy import PerspectiveManager, Table, PerspectiveCppError, set_threadpool_size, async_client, sync_client
+from .legacy import *
+# from .legacy import PerspectiveManager, Table, PerspectiveCppError, set_threadpool_size, async_client, sync_client, PerspectivePyError
 from .widget import PerspectiveWidget
 from .viewer import PerspectiveViewer
 from .handlers import PerspectiveTornadoHandler

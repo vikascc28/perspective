@@ -16,7 +16,7 @@ from perspective import Table, set_threadpool_size
 def compare_delta(received, expected):
     """Compare an arrow-serialized row delta by constructing a Table."""
     tbl = Table(received)
-    assert tbl.view().to_dict() == expected
+    assert tbl.view().to_columns() == expected
 
 
 class TestThreadpool(object):

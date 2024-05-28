@@ -12,6 +12,7 @@
 
 import os
 import time
+from perspective.tests.conftest import Util
 import pytz
 import numpy as np
 import pandas as pd
@@ -26,6 +27,8 @@ LOCAL_DATETIMES = [
     datetime(2019, 1, 11, 19, 10, 20),
 ]
 
+LOCAL_DATETIMES_TS = [int(d.timestamp() * 1000) for d in LOCAL_DATETIMES]
+
 # Test the DST transition for Continental US
 LOCAL_DATETIMES_DST = [
     datetime(2019, 3, 9, 12, 10, 20),
@@ -33,6 +36,8 @@ LOCAL_DATETIMES_DST = [
     datetime(2019, 11, 2, 12, 10, 20),
     datetime(2019, 11, 3, 12, 10, 20),
 ]
+
+LOCAL_DATETIMES_DST_TS = [int(d.timestamp() * 1000) for d in LOCAL_DATETIMES_DST]
 
 LOCAL_TIMESTAMPS = [pd.Timestamp(d) for d in LOCAL_DATETIMES]
 LOCAL_TIMESTAMPS_DST = [pd.Timestamp(d) for d in LOCAL_DATETIMES_DST]
@@ -92,12 +97,12 @@ if os.name != "nt":
             """
             data = {"a": LOCAL_DATETIMES}
             table = Table(data)
-            assert table.view().to_dict()["a"] == LOCAL_DATETIMES
+            assert table.view().to_columns()["a"] == LOCAL_DATETIMES_TS
 
         def test_table_should_assume_local_time_numpy_datetime64(self):
             data = {"a": [np.datetime64(d) for d in LOCAL_DATETIMES]}
             table = Table(data)
-            assert table.view().to_dict()["a"] == LOCAL_DATETIMES
+            assert table.view().to_columns()["a"] == LOCAL_DATETIMES_TS
 
         def test_table_should_assume_local_time_pandas_timestamp(self):
             data = {"a": LOCAL_TIMESTAMPS}
@@ -106,9 +111,9 @@ if os.name != "nt":
             table = Table(data)
 
             # Timestamps are read out in local time
-            assert table.view().to_dict()["a"] == LOCAL_DATETIMES
+            assert table.view().to_columns()["a"] == LOCAL_DATETIMES_TS
 
-        def test_table_should_assume_local_time_pandas_timestamp_df(self):
+        def test_table_should_assume_local_time_pandas_timestamp_df(self, util: Util):
             data = pd.DataFrame({"a": LOCAL_TIMESTAMPS})
 
             # Timestamps are assumed to be in UTC by pandas
@@ -127,22 +132,22 @@ if os.name != "nt":
             """
             data = {"a": LOCAL_DATETIMES_DST}
             table = Table(data)
-            assert table.view().to_dict()["a"] == LOCAL_DATETIMES_DST
+            assert table.view().to_columns()["a"] == LOCAL_DATETIMES_DST_TS
 
         def test_table_should_assume_local_time_numpy_datetime64_dst(self):
             data = {"a": [np.datetime64(d) for d in LOCAL_DATETIMES_DST]}
             table = Table(data)
-            assert table.view().to_dict()["a"] == LOCAL_DATETIMES_DST
+            assert table.view().to_columns()["a"] == LOCAL_DATETIMES_DST_TS
 
         def test_table_should_assume_local_time_pandas_timestamp_dst(self):
             data = {"a": LOCAL_TIMESTAMPS_DST}
             table = Table(data)
-            assert table.view().to_dict()["a"] == LOCAL_DATETIMES_DST
+            assert table.view().to_columns()["a"] == LOCAL_DATETIMES_DST_TS
 
         def test_table_should_assume_local_time_pandas_timestamp_dst_df(self):
             data = pd.DataFrame({"a": LOCAL_TIMESTAMPS_DST})
             table = Table(data)
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 datetime(2019, 3, 9, 7, 10, 20),
                 datetime(2019, 3, 19, 8, 10, 20),
                 datetime(2019, 11, 2, 8, 10, 20),
@@ -152,44 +157,44 @@ if os.name != "nt":
         def test_table_datetime_min(self):
             data = {"a": [datetime.min]}
             table = Table(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
 
         def test_table_datetime_min_df(self):
             data = pd.DataFrame({"a": [datetime.min]})
             table = Table(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
 
         def test_table_datetime_1900(self):
             data = {"a": [datetime(1900, 1, 1)]}
             table = Table(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1900, 1, 1).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1900, 1, 1).timestamp() * 1000)]
 
         def test_table_datetime_1900_df(self):
             data = pd.DataFrame({"a": [datetime(1900, 1, 1)]})
             table = Table(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1899, 12, 31, 19).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1899, 12, 31, 19).timestamp() * 1000)]
 
         def test_table_datetime_1899(self):
             data = {"a": [datetime(1899, 1, 1)]}
             table = Table(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1898, 12, 31, 19).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1898, 12, 31, 19).timestamp() * 1000)]
 
         def test_table_datetime_1899_df(self):
             data = pd.DataFrame({"a": [datetime(1899, 1, 1)]})
             table = Table(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1898, 12, 31, 19).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1898, 12, 31, 19).timestamp() * 1000)]
 
         def test_table_datetime_min_epoch(self):
             data = {"a": [0]}
             table = Table({"a": "datetime"})
             table.update(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
 
         def test_table_datetime_min_epoch_df(self):
             data = pd.DataFrame({"a": [0]})
             table = Table({"a": "datetime"})
             table.update(data)
-            assert table.view().to_dict()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
 
         @mark.skip
         def test_table_datetime_max(self):
@@ -197,13 +202,13 @@ if os.name != "nt":
             table = Table(data)
 
             # lol - result is converted from UTC to EST (local time)
-            assert table.view().to_dict()["a"] == [int(datetime(9999, 12, 31, 18, 59, 59).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(9999, 12, 31, 18, 59, 59).timestamp() * 1000)]
 
         @mark.skip
         def test_table_datetime_max_df(self):
             data = pd.DataFrame({"a": [datetime.max]})
             table = Table(data)
-            assert table.view().to_dict()["a"] == [int(datetime(9999, 12, 31, 18, 59, 59).timestamp() * 1000)]
+            assert table.view().to_columns()["a"] == [int(datetime(9999, 12, 31, 18, 59, 59).timestamp() * 1000)]
 
     class TestTableDateTimeUTCToLocal(object):
         def teardown_method(self):
@@ -223,11 +228,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in PST now
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.astimezone(PST).replace(tzinfo=None) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_pytz_central(self):
+        def test_table_should_convert_UTC_to_local_time_pytz_central(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -235,11 +240,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(CST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(CST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_pytz_eastern(self):
+        def test_table_should_convert_UTC_to_local_time_pytz_eastern(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -247,11 +252,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(EST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(EST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_pytz_GMT(self):
+        def test_table_should_convert_UTC_to_local_time_pytz_GMT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -259,44 +264,44 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(GMT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_pytz_HKT(self):
+        def test_table_should_convert_UTC_to_local_time_pytz_HKT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(HKT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_pytz_JPT(self):
+        def test_table_should_convert_UTC_to_local_time_pytz_JPT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(JPT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_pytz_ACT(self):
+        def test_table_should_convert_UTC_to_local_time_pytz_ACT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
             os.environ["TZ"] = "Australia/Sydney"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(ACT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_pacific(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_pacific(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -304,11 +309,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in PST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(PST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(PST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_central(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_central(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -316,8 +321,8 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(CST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(CST).replace(tzinfo=None)) for d in data["a"]]
             }
 
         def test_table_should_convert_UTC_to_local_time_dateutil_eastern(self):
@@ -328,7 +333,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.astimezone(EST).replace(tzinfo=None) for d in data["a"]]
             }
 
@@ -340,7 +345,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]]
             }
 
@@ -352,7 +357,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in PST now
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Pacific"]]
             }
 
@@ -364,7 +369,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Central"]]
             }
 
@@ -376,7 +381,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Eastern"]]
             }
 
@@ -388,7 +393,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["GMT"]]
             }
 
@@ -402,7 +407,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in PST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Pacific"]
             ]
 
@@ -416,7 +421,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Central"]
             ]
 
@@ -430,7 +435,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Eastern"]
             ]
 
@@ -444,7 +449,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["GMT"]
             ]
 
@@ -455,7 +460,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]]
             }
 
@@ -466,7 +471,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]]
             }
 
@@ -479,7 +484,7 @@ if os.name != "nt":
 
             ACT = tz.gettz("Australia/Sydney")
 
-            assert table.view().to_dict() == {
+            assert table.view().to_columns() == {
                 "a": [d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]]
             }
 
@@ -491,7 +496,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in PST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(PST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -503,7 +508,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(CST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -515,7 +520,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(EST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -527,7 +532,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -538,7 +543,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -549,7 +554,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -560,7 +565,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Australia/Sydney"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -574,7 +579,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in PST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(PST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -590,7 +595,7 @@ if os.name != "nt":
             CST = tz.gettz("US/Central")
 
             # Should be in CST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(CST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -604,7 +609,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(EST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -618,7 +623,7 @@ if os.name != "nt":
             GMT = tz.gettz("GMT")
 
             # Should be in GMT now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -629,7 +634,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -640,7 +645,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -651,7 +656,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Australia/Sydney"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -661,7 +666,7 @@ if os.name != "nt":
             os.environ["TZ"] = "UTC"
             time.tzset()
 
-        def test_table_should_convert_PST_to_local_time_pytz_central(self):
+        def test_table_should_convert_PST_to_local_time_pytz_central(self, util: Util):
             data = {"a": TZ_DATETIMES["US/Pacific"]}
             table = Table(data)
 
@@ -669,11 +674,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(CST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(CST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_CST_to_local_time_pytz_eastern(self):
+        def test_table_should_convert_CST_to_local_time_pytz_eastern(self, util: Util):
             data = {"a": TZ_DATETIMES["US/Central"]}
             table = Table(data)
 
@@ -681,11 +686,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(EST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(EST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_EST_to_local_time_pytz_GMT(self):
+        def test_table_should_convert_EST_to_local_time_pytz_GMT(self, util: Util):
             data = {"a": TZ_DATETIMES["US/Eastern"]}
             table = Table(data)
 
@@ -693,44 +698,44 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(GMT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_GMT_to_local_time_pytz_HKT(self):
+        def test_table_should_convert_GMT_to_local_time_pytz_HKT(self, util: Util):
             data = {"a": TZ_DATETIMES["GMT"]}
             table = Table(data)
 
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(HKT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_HKT_to_local_time_pytz_JPT(self):
+        def test_table_should_convert_HKT_to_local_time_pytz_JPT(self, util: Util):
             data = {"a": TZ_DATETIMES["Asia/Hong_Kong"]}
             table = Table(data)
 
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(JPT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_JPT_to_local_time_pytz_ACT(self):
+        def test_table_should_convert_JPT_to_local_time_pytz_ACT(self, util: Util):
             data = {"a": TZ_DATETIMES["Asia/Tokyo"]}
             table = Table(data)
 
             os.environ["TZ"] = "Australia/Sydney"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(ACT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_PST_to_local_time_dateutil_central(self):
+        def test_table_should_convert_PST_to_local_time_dateutil_central(self, util: Util):
             data = {"a": TZ_DATETIMES["US/Pacific"]}
             table = Table(data)
 
@@ -738,11 +743,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(CST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(CST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_CST_to_local_time_dateutil_eastern(self):
+        def test_table_should_convert_CST_to_local_time_dateutil_eastern(self, util: Util):
             data = {"a": TZ_DATETIMES["US/Central"]}
             table = Table(data)
 
@@ -750,11 +755,11 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(EST).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(EST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_EST_to_local_time_dateutil_GMT(self):
+        def test_table_should_convert_EST_to_local_time_dateutil_GMT(self, util: Util):
             data = {"a": TZ_DATETIMES["US/Eastern"]}
             table = Table(data)
 
@@ -762,44 +767,44 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(GMT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_GMT_to_local_time_dateutil_HKT(self):
+        def test_table_should_convert_GMT_to_local_time_dateutil_HKT(self, util: Util):
             data = {"a": TZ_DATETIMES["GMT"]}
             table = Table(data)
 
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(HKT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_HKT_to_local_time_dateutil_JPT(self):
+        def test_table_should_convert_HKT_to_local_time_dateutil_JPT(self, util: Util):
             data = {"a": TZ_DATETIMES["Asia/Hong_Kong"]}
             table = Table(data)
 
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(JPT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_JPT_to_local_time_dateutil_ACT(self):
+        def test_table_should_convert_JPT_to_local_time_dateutil_ACT(self, util: Util):
             data = {"a": TZ_DATETIMES["Asia/Tokyo"]}
             table = Table(data)
 
             os.environ["TZ"] = "Australia/Sydney"
             time.tzset()
 
-            assert table.view().to_dict() == {
-                "a": [d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]]
+            assert table.view().to_columns() == {
+                "a": [util.to_timestamp(d.astimezone(ACT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_PST_to_local_time_pytz_central_timestamp(self):
+        def test_table_should_convert_PST_to_local_time_pytz_central_timestamp(self, util: Util):
             data = {"a": TZ_TIMESTAMPS["US/Pacific"]}
             table = Table(pd.DataFrame(data))
 
@@ -807,8 +812,8 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict()["a"] == [
-                d.astimezone(CST).replace(tzinfo=None) for d in data["a"]
+            assert table.view().to_columns()["a"] == [
+                util.to_timestamp(d.astimezone(CST).replace(tzinfo=None)) for d in data["a"]
             ]
 
         def test_table_should_convert_CST_to_local_time_pytz_eastern_timestamp(self):
@@ -819,7 +824,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(EST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -831,7 +836,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -842,7 +847,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -853,7 +858,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -864,7 +869,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Australia/Sydney"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -878,7 +883,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in CST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(CST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -892,7 +897,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in EST now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(EST).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -904,7 +909,7 @@ if os.name != "nt":
             time.tzset()
 
             # Should be in GMT now
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -915,7 +920,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Hong_Kong"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -926,7 +931,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Asia/Tokyo"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -937,7 +942,7 @@ if os.name != "nt":
             os.environ["TZ"] = "Australia/Sydney"
             time.tzset()
 
-            assert table.view().to_dict()["a"] == [
+            assert table.view().to_columns()["a"] == [
                 d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]
             ]
 
@@ -1063,7 +1068,7 @@ if os.name != "nt":
             table = Table(data)
             now = datetime.now()
             view = table.view(expressions=["now()"])
-            result = view.to_dict()
+            result = view.to_columns()
 
             for item in result["now()"]:
                 in_range = (
@@ -1080,7 +1085,7 @@ if os.name != "nt":
             table = Table(data)
             now = datetime.now()
             view = table.view(expressions=["now()"])
-            result = view.to_dict()
+            result = view.to_columns()
 
             for item in result["now()"]:
                 in_range = (
@@ -1097,7 +1102,7 @@ if os.name != "nt":
             table = Table(data)
             now = datetime.now()
             view = table.view(expressions=["now()"])
-            result = view.to_dict()
+            result = view.to_columns()
 
             for item in result["now()"]:
                 in_range = (
@@ -1110,7 +1115,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['hour_of_day("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['hour_of_day("a")'] == [0, 11, 19]
 
         def test_table_hour_of_day_in_CST(self):
@@ -1121,7 +1126,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['hour_of_day("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['hour_of_day("a")'] == [0, 11, 19]
 
         def test_table_hour_of_day_in_PST(self):
@@ -1132,7 +1137,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['hour_of_day("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['hour_of_day("a")'] == [0, 11, 19]
 
         def test_table_day_of_week_edge_in_EST(self):
@@ -1143,7 +1148,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['day_of_week("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['day_of_week("a")'] == ["6 Friday"]
 
         def test_table_day_of_week_edge_in_CST(self):
@@ -1154,7 +1159,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['day_of_week("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['day_of_week("a")'] == ["6 Friday"]
 
         def test_table_day_of_week_edge_in_PST(self):
@@ -1165,7 +1170,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['day_of_week("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['day_of_week("a")'] == ["6 Friday"]
 
         def test_table_month_of_year_edge_in_EST(self):
@@ -1176,7 +1181,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['month_of_year("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['month_of_year("a")'] == ["01 January"]
 
         def test_table_month_of_year_edge_in_CST(self):
@@ -1187,7 +1192,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['month_of_year("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['month_of_year("a")'] == ["01 January"]
 
         def test_table_month_of_year_edge_in_PST(self):
@@ -1198,7 +1203,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=['month_of_year("a")'])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result['month_of_year("a")'] == ["01 January"]
 
         def test_table_day_bucket_edge_in_EST(self):
@@ -1209,7 +1214,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'D')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'D')"] == [int(datetime(2020, 1, 31).timestamp() * 1000)]
 
         def test_table_day_bucket_edge_in_CST(self):
@@ -1220,7 +1225,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'D')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'D')"] == [int(datetime(2020, 1, 31).timestamp() * 1000)]
 
         def test_table_day_bucket_edge_in_PST(self):
@@ -1231,7 +1236,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'D')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'D')"] == [int(datetime(2020, 1, 31).timestamp() * 1000)]
 
         def test_table_week_bucket_edge_in_EST(self):
@@ -1242,7 +1247,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'W')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'W')"] == [int(datetime(2020, 1, 27).timestamp() * 1000)]
 
         def test_table_week_bucket_edge_in_CST(self):
@@ -1253,7 +1258,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'W')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'W')"] == [int(datetime(2020, 1, 27).timestamp() * 1000)]
 
         def test_table_week_bucket_edge_in_PST(self):
@@ -1264,7 +1269,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'W')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'W')"] == [int(datetime(2020, 1, 27).timestamp() * 1000)]
 
         def test_table_week_bucket_edge_flip_in_EST(self):
@@ -1273,7 +1278,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'W')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'W')"] == [int(datetime(2020, 2, 24).timestamp() * 1000)]
 
         def test_table_week_bucket_edge_flip_in_CST(self):
@@ -1283,7 +1288,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'W')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'W')"] == [int(datetime(2020, 2, 24).timestamp() * 1000)]
 
         def test_table_week_bucket_edge_flip_in_PST(self):
@@ -1293,7 +1298,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'W')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'W')"] == [int(datetime(2020, 2, 24).timestamp() * 1000)]
 
         def test_table_month_bucket_edge_in_EST(self):
@@ -1304,7 +1309,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'M')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'M')"] == [int(datetime(2020, 6, 1).timestamp() * 1000)]
 
         def test_table_month_bucket_edge_in_CST(self):
@@ -1315,7 +1320,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'M')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'M')"] == [int(datetime(2020, 6, 1).timestamp() * 1000)]
 
         def test_table_month_bucket_edge_in_PST(self):
@@ -1326,7 +1331,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'M')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'M')"] == [int(datetime(2020, 6, 1).timestamp() * 1000)]
 
         def test_table_year_bucket_edge_in_EST(self):
@@ -1337,7 +1342,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'Y')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'Y')"] == [int(datetime(2019, 1, 1).timestamp() * 1000)]
 
         def test_table_year_bucket_edge_in_CST(self):
@@ -1347,7 +1352,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'Y')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'Y')"] == [int(datetime(2019, 1, 1).timestamp() * 1000)]
 
         def test_table_year_bucket_edge_in_PST(self):
@@ -1357,7 +1362,7 @@ if os.name != "nt":
 
             table = Table(data)
             view = table.view(expressions=["bucket(\"a\", 'Y')"])
-            result = view.to_dict()
+            result = view.to_columns()
             assert result["bucket(\"a\", 'Y')"] == [int(datetime(2019, 1, 1).timestamp() * 1000)]
 
 

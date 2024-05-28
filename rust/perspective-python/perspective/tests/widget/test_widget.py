@@ -30,7 +30,7 @@ class TestWidget:
         widget = PerspectiveWidget(data, plugin="X Bar")
         assert widget.plugin == "X Bar"
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name, "options": {}},
@@ -41,7 +41,7 @@ class TestWidget:
         widget = PerspectiveWidget(data, plugin="X Bar", index="a")
         assert widget.plugin == "X Bar"
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name, "options": {"index": "a"}},
@@ -86,7 +86,7 @@ class TestWidget:
         widget.load(table)
 
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name, "options": {}},
@@ -97,7 +97,7 @@ class TestWidget:
         assert widget.plugin == "X Bar"
         widget.load({"a": np.arange(0, 50)}, index="a")
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {
@@ -110,7 +110,7 @@ class TestWidget:
         assert widget.plugin == "X Bar"
         widget.load({"a": np.arange(0, 50)}, index="a")
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name, "options": {"index": "a"}},
@@ -122,7 +122,7 @@ class TestWidget:
         assert widget.plugin == "X Bar"
         widget.load(table)
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name, "options": {"index": "a"}},
@@ -133,7 +133,7 @@ class TestWidget:
         widget = PerspectiveWidget(table, plugin="X Bar")
         assert widget.plugin == "X Bar"
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name, "options": {}},
@@ -144,7 +144,7 @@ class TestWidget:
         widget = PerspectiveWidget(table, plugin="X Bar")
         assert widget.plugin == "X Bar"
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name, "options": {"index": "a"}},
@@ -175,7 +175,7 @@ class TestWidget:
         table = Table({"a": np.arange(0, 50)})
         widget = PerspectiveWidget(table, server=True)
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name},
@@ -197,7 +197,7 @@ class TestWidget:
         # then succeed
         widget.load(Table({"a": np.arange(0, 50)}))
         load_msg = widget._make_load_message()
-        assert load_msg.to_dict() == {
+        assert load_msg.to_columns() == {
             "id": -2,
             "type": "table",
             "data": {"table_name": widget.table_name},

@@ -26,4 +26,4 @@ class TestTableInfer(object):
         t2.update([{"a": 10}, {"b": 1}, {"a": 20}, {"b": 2}])
         df2 = t2.view().to_df()
 
-        assert df.to_dict() == df2.to_dict()
+        assert df.to_columns() == df2.to_columns()
