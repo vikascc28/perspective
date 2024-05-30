@@ -159,8 +159,8 @@ impl PyAsyncServer {
         data: Vec<u8>,
     ) -> PyResult<()> {
         let server = self.server.clone();
-        // TODO: Make this return a boolean for "should_poll" to determine whether we immediately
-        //       schedule a poll after this request.
+        // TODO: Make this return a boolean for "should_poll" to determine whether we
+        // immediately       schedule a poll after this request.
         server.handle_request(client_id, &data);
         Ok(())
     }
@@ -207,12 +207,18 @@ impl PyAsyncClient {
             Ok(PyAsyncTable(table))
         })
     }
+
+    pub fn get_hosted_table_names<'a>(&self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let client = self.0.clone();
+        future_into_py(py, async move { client.get_hosted_table_names().await })
+    }
 }
 
 #[pyfunction]
-#[pyo3(name = "create_async_client", signature = (server = None, client_id = None))]
+#[pyo3(name = "create_async_client", signature = (loop_cb, server = None, client_id = None))]
 pub fn create_async_client(
     py: Python<'_>,
+    loop_cb: Py<PyFunction>,
     server: Option<Py<PyAsyncServer>>,
     client_id: Option<u32>,
 ) -> PyResult<&'_ PyAny> {
@@ -225,7 +231,7 @@ pub fn create_async_client(
     });
 
     future_into_py(py, async move {
-        Ok(PyAsyncClient(PyClient::new(server, client_id, None)))
+        Ok(PyAsyncClient(PyClient::new(server, client_id, loop_cb)))
     })
 }
 

@@ -41,6 +41,7 @@ parse_date_time(
     std::istringstream ss;
     auto try_format = [&ss, &tm, &date_time_str, &tp](std::string_view format) {
         std::memset(&tm, 0, sizeof(tm));
+        std::memset(&tp, 0, sizeof(tp));
         LOG_DEBUG("Testing Format: " << format);
         LOG_DEBUG("Date Time String: " << date_time_str);
         ss.clear();
@@ -61,6 +62,15 @@ parse_date_time(
             ss >> ms;
             LOG_DEBUG("Parsed milliseconds: " << ms);
             tp += std::chrono::milliseconds(ms);
+        }
+        if (!ss.eof() && ss.peek() == 'Z') {
+            ss.ignore();
+        }
+        if (!ss.eof()) {
+            char c;
+            ss >> c;
+            LOG_DEBUG("Failed to parse datetime: expected EOF and got " << c);
+            return false;
         }
         LOG_DEBUG("Failed: " << ss.fail());
         return !ss.fail();
@@ -83,6 +93,7 @@ parse_all_date_time(
         "%m-%d-%Y %H:%M:%S",
         "%m/%d/%Y %H:%M:%S",
         "%Y-%m-%d %H:%M:%S",
+        "%Y/%m/%dT%H:%M:%S",
         "%Y/%m/%d %H:%M:%S",
         "%m-%d-%Y %H:%M",
         "%m/%d/%Y %H:%M",
@@ -95,7 +106,8 @@ parse_all_date_time(
         "%m-%d-%Y",
         "%m/%d/%Y",
         "%Y-%m-%d",
-        "%Y/%m/%d"
+        "%Y/%m/%d",
+        "%Y %m %d"
     );
 }
 

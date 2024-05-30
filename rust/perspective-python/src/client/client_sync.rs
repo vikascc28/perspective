@@ -37,13 +37,27 @@ impl PySyncClient {
             self.0.table(input, limit, index, name).block_on()?,
         ))
     }
+
+    pub fn open_table(&self, name: String) -> PyResult<PySyncTable> {
+        let client = self.0.clone();
+        let table = client.open_table(name).block_on()?;
+        Ok(PySyncTable(table))
+    }
+
+    pub fn get_hosted_table_names(&self) -> PyResult<Vec<String>> {
+        self.0.get_hosted_table_names().block_on()
+    }
+    
+    pub fn set_loop_callback(&self, loop_cb: Py<PyFunction>) -> PyResult<()> {
+        self.0.set_loop_cb(loop_cb).block_on()
+    }
 }
 
 /// Create a new `Client` instance with a _synchronous_, _blocking_ API.
 #[pyfunction]
 #[pyo3(text_signature = "(loop_cb=None)")]
-pub fn create_sync_client(loop_cb: Option<Py<PyFunction>>) -> PySyncClient {
-    PySyncClient(PyClient::new(None, None, loop_cb))
+pub fn _create_sync_client(loop_cb: Py<PyFunction>) -> PyResult<PySyncClient> {
+    Ok(PySyncClient(PyClient::new(None, None, loop_cb)))
 }
 
 #[pyclass]
@@ -154,25 +168,30 @@ impl PySyncView {
     }
 
     #[doc = include_str!("../../docs/view/to_columns_string.md")]
+    #[pyo3(signature = (**window))]
     fn to_columns_string(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
         self.0.to_columns_string(window).block_on()
     }
 
     #[doc = include_str!("../../docs/view/to_json_string.md")]
+    #[pyo3(signature = (**window))]
     fn to_json_string(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
         self.0.to_json_string(window).block_on()
     }
 
+    #[pyo3(signature = (**window))]
     fn to_records<'a>(&self, py: Python<'a>, window: Option<Py<PyDict>>) -> PyResult<&'a PyAny> {
         let json = self.0.to_json_string(window).block_on()?;
         let json_module = PyModule::import(py, "json")?;
         json_module.call_method1("loads", (json,))
     }
 
+    #[pyo3(signature = (**window))]
     fn to_json<'a>(&self, py: Python<'a>, window: Option<Py<PyDict>>) -> PyResult<&'a PyAny> {
         self.to_records(py, window)
     }
 
+    #[pyo3(signature = (**window))]
     fn to_columns<'a>(&self, py: Python<'a>, window: Option<Py<PyDict>>) -> PyResult<&'a PyAny> {
         let json = self.0.to_columns_string(window).block_on()?;
         let json_module = PyModule::import(py, "json")?;
@@ -180,11 +199,13 @@ impl PySyncView {
     }
 
     #[doc = include_str!("../../docs/view/to_csv.md")]
+    #[pyo3(signature = (**window))]
     fn to_csv(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
         self.0.to_csv(window).block_on()
     }
 
     #[doc = include_str!("../../docs/view/to_csv.md")]
+    #[pyo3(signature = (**window))]
     fn to_arrow(&self, window: Option<Py<PyDict>>) -> PyResult<Py<PyBytes>> {
         self.0.to_arrow(window).block_on()
     }

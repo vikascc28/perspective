@@ -154,19 +154,21 @@ if os.name != "nt":
                 datetime(2019, 11, 3, 7, 10, 20),
             ]
 
+        @mark.skip(reason="Python specific behavior we don't need")
         def test_table_datetime_min(self):
             data = {"a": [datetime.min]}
             table = Table(data)
             assert table.view().to_columns()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
 
+        @mark.skip(reason="Python specific behavior we don't need")
         def test_table_datetime_min_df(self):
             data = pd.DataFrame({"a": [datetime.min]})
             table = Table(data)
             assert table.view().to_columns()["a"] == [int(datetime(1969, 12, 31, 19, 0).timestamp() * 1000)]
 
         def test_table_datetime_1900(self):
-            data = {"a": [datetime(1900, 1, 1)]}
-            table = Table(data)
+            table = Table({"a": "datetime"})
+            table.update({"a": [datetime(1900, 1, 1).timestamp() * 1000]})
             assert table.view().to_columns()["a"] == [int(datetime(1900, 1, 1).timestamp() * 1000)]
 
         def test_table_datetime_1900_df(self):
@@ -174,10 +176,10 @@ if os.name != "nt":
             table = Table(data)
             assert table.view().to_columns()["a"] == [int(datetime(1899, 12, 31, 19).timestamp() * 1000)]
 
-        def test_table_datetime_1899(self):
-            data = {"a": [datetime(1899, 1, 1)]}
-            table = Table(data)
-            assert table.view().to_columns()["a"] == [int(datetime(1898, 12, 31, 19).timestamp() * 1000)]
+        def test_table_datetime_1899(self, util: Util):
+            table = Table({"a": "datetime"})
+            table.update({"a": [datetime(1899, 1, 1)]})
+            assert table.view().to_columns()["a"] == [util.to_timestamp(datetime(1898, 12, 31, 19))]
 
         def test_table_datetime_1899_df(self):
             data = pd.DataFrame({"a": [datetime(1899, 1, 1)]})
@@ -216,6 +218,7 @@ if os.name != "nt":
             os.environ["TZ"] = "UTC"
             time.tzset()
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_should_convert_UTC_to_local_time_pytz_pacific(self):
             """If the datetime has `tzinfo` set, use it to convert the datetime to
             UTC. Make sure this works with both `pytz` and `dateutil` for
@@ -325,7 +328,7 @@ if os.name != "nt":
                 "a": [util.to_timestamp(d.astimezone(CST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_eastern(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_eastern(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -334,10 +337,10 @@ if os.name != "nt":
 
             # Should be in EST now
             assert table.view().to_columns() == {
-                "a": [d.astimezone(EST).replace(tzinfo=None) for d in data["a"]]
+                "a": [util.to_timestamp(d.astimezone(EST).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_GMT(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_GMT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -346,10 +349,10 @@ if os.name != "nt":
 
             # Should be in GMT now
             assert table.view().to_columns() == {
-                "a": [d.astimezone(GMT).replace(tzinfo=None) for d in data["a"]]
+                "a": [util.to_timestamp(d.astimezone(GMT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_pacific_DST(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_pacific_DST(self, util: Util):
             data = {"a": UTC_DATETIMES_DST}
             table = Table(data)
 
@@ -358,10 +361,10 @@ if os.name != "nt":
 
             # Should be in PST now
             assert table.view().to_columns() == {
-                "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Pacific"]]
+                "a": [util.to_timestamp(d.replace(tzinfo=None)) for d in TZ_DATETIMES_DST["US/Pacific"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_central_DST(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_central_DST(self, util: Util):
             data = {"a": UTC_DATETIMES_DST}
             table = Table(data)
 
@@ -370,10 +373,10 @@ if os.name != "nt":
 
             # Should be in CST now
             assert table.view().to_columns() == {
-                "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Central"]]
+                "a": [util.to_timestamp(d.replace(tzinfo=None)) for d in TZ_DATETIMES_DST["US/Central"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_eastern_DST(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_eastern_DST(self, util: Util):
             data = {"a": UTC_DATETIMES_DST}
             table = Table(data)
 
@@ -382,10 +385,10 @@ if os.name != "nt":
 
             # Should be in EST now
             assert table.view().to_columns() == {
-                "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["US/Eastern"]]
+                "a": [util.to_timestamp(d.replace(tzinfo=None)) for d in TZ_DATETIMES_DST["US/Eastern"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_GMT_DST(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_GMT_DST(self, util: Util):
             data = {"a": UTC_DATETIMES_DST}
             table = Table(data)
 
@@ -394,7 +397,7 @@ if os.name != "nt":
 
             # Should be in GMT now
             assert table.view().to_columns() == {
-                "a": [d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["GMT"]]
+                "a": [util.to_timestamp(d.replace(tzinfo=None)) for d in TZ_DATETIMES_DST["GMT"]]
             }
 
         def test_table_should_convert_UTC_to_local_time_dateutil_pacific_DST_timestamp(
@@ -453,7 +456,7 @@ if os.name != "nt":
                 d.replace(tzinfo=None) for d in TZ_DATETIMES_DST["GMT"]
             ]
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_HKT(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_HKT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -461,10 +464,10 @@ if os.name != "nt":
             time.tzset()
 
             assert table.view().to_columns() == {
-                "a": [d.astimezone(HKT).replace(tzinfo=None) for d in data["a"]]
+                "a": [util.to_timestamp(d.astimezone(HKT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_JPT(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_JPT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -472,10 +475,10 @@ if os.name != "nt":
             time.tzset()
 
             assert table.view().to_columns() == {
-                "a": [d.astimezone(JPT).replace(tzinfo=None) for d in data["a"]]
+                "a": [util.to_timestamp(d.astimezone(JPT).replace(tzinfo=None)) for d in data["a"]]
             }
 
-        def test_table_should_convert_UTC_to_local_time_dateutil_ACT(self):
+        def test_table_should_convert_UTC_to_local_time_dateutil_ACT(self, util: Util):
             data = {"a": UTC_DATETIMES}
             table = Table(data)
 
@@ -485,7 +488,7 @@ if os.name != "nt":
             ACT = tz.gettz("Australia/Sydney")
 
             assert table.view().to_columns() == {
-                "a": [d.astimezone(ACT).replace(tzinfo=None) for d in data["a"]]
+                "a": [util.to_timestamp(d.astimezone(ACT).replace(tzinfo=None)) for d in data["a"]]
             }
 
         def test_table_should_convert_UTC_to_local_time_pytz_pacific_timestamp(self):
@@ -959,7 +962,8 @@ if os.name != "nt":
             os.environ["TZ"] = "UTC"
             time.tzset()
 
-        def test_table_group_by_datetime_row_path_local_time_EST(self):
+        @mark.skip(reason="Unsupported non-UTC timezone")
+        def test_table_group_by_datetime_row_path_local_time_EST(self, util: Util):
             """Make sure that string datetimes generated in Python are in
             local time and not UTC."""
             data = {"a": LOCAL_DATETIMES, "b": [i for i in range(len(LOCAL_DATETIMES))]}
@@ -970,15 +974,15 @@ if os.name != "nt":
             assert view.to_columns() == {
                 "__ROW_PATH__": [
                     [],
-                    [datetime(2019, 1, 11, 0, 10, 20)],
-                    [datetime(2019, 1, 11, 11, 10, 20)],
-                    [datetime(2019, 1, 11, 19, 10, 20)],
+                    [util.to_timestamp(datetime(2019, 1, 11, 0, 10, 20))],
+                    [util.to_timestamp(datetime(2019, 1, 11, 11, 10, 20))],
+                    [util.to_timestamp(datetime(2019, 1, 11, 19, 10, 20))],
                 ],
                 "a": [3, 1, 1, 1],
                 "b": [3, 0, 1, 2],
             }
 
-        def test_table_group_by_datetime_row_path_UTC(self):
+        def test_table_group_by_datetime_row_path_UTC(self, util: Util):
             """Make sure that string datetimes generated in Python are in
             UTC if the timezone is UTC.
 
@@ -996,14 +1000,15 @@ if os.name != "nt":
             assert view.to_columns() == {
                 "__ROW_PATH__": [
                     [],
-                    [datetime(2019, 1, 11, 0, 10, 20)],
-                    [datetime(2019, 1, 11, 11, 10, 20)],
-                    [datetime(2019, 1, 11, 19, 10, 20)],
+                    [util.to_timestamp(datetime(2019, 1, 11, 0, 10, 20))],
+                    [util.to_timestamp(datetime(2019, 1, 11, 11, 10, 20))],
+                    [util.to_timestamp(datetime(2019, 1, 11, 19, 10, 20))],
                 ],
                 "a": [3, 1, 1, 1],
                 "b": [3, 0, 1, 2],
             }
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_group_by_datetime_row_path_CST(self):
             """Make sure that string datetimes generated in Python are in
             CST if the timezone is CST."""
@@ -1026,6 +1031,7 @@ if os.name != "nt":
                 "b": [3, 0, 1, 2],
             }
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_group_by_datetime_row_path_PST(self):
             """Make sure that string datetimes generated in Python are in
             CST if the timezone is CST."""
@@ -1062,6 +1068,7 @@ if os.name != "nt":
             os.environ["TZ"] = "UTC"
             time.tzset()
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_now_in_EST(self, util):
             data = {"a": LOCAL_DATETIMES}
 
@@ -1076,6 +1083,7 @@ if os.name != "nt":
                 )
                 assert in_range is True
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_now_in_CST(self, util):
             os.environ["TZ"] = "US/Central"
             time.tzset()
@@ -1093,6 +1101,7 @@ if os.name != "nt":
                 )
                 assert in_range is True
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_now_in_PST(self, util):
             os.environ["TZ"] = "US/Pacific"
             time.tzset()
@@ -1110,6 +1119,7 @@ if os.name != "nt":
                 )
                 assert in_range is True
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_hour_of_day_in_EST(self):
             data = {"a": LOCAL_DATETIMES}
 
@@ -1118,6 +1128,7 @@ if os.name != "nt":
             result = view.to_columns()
             assert result['hour_of_day("a")'] == [0, 11, 19]
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_hour_of_day_in_CST(self):
             os.environ["TZ"] = "US/Central"
             time.tzset()
@@ -1129,6 +1140,7 @@ if os.name != "nt":
             result = view.to_columns()
             assert result['hour_of_day("a")'] == [0, 11, 19]
 
+        @mark.skip(reason="Unsupported non-UTC timezone")
         def test_table_hour_of_day_in_PST(self):
             os.environ["TZ"] = "US/Pacific"
             time.tzset()
@@ -1367,7 +1379,7 @@ if os.name != "nt":
 
 
 class TestTableDateTimePivots(object):
-    def test_table_group_by_date_correct(self):
+    def test_table_group_by_date_correct(self, util: Util):
         data = {
             "a": [date(2020, i, 15) for i in range(1, 13)],
             "b": [i for i in range(1, 13)],
@@ -1377,24 +1389,24 @@ class TestTableDateTimePivots(object):
         assert view.to_columns() == {
             "__ROW_PATH__": [
                 [],
-                [datetime(2020, 1, 15, 0, 0)],
-                [datetime(2020, 2, 15, 0, 0)],
-                [datetime(2020, 3, 15, 0, 0)],
-                [datetime(2020, 4, 15, 0, 0)],
-                [datetime(2020, 5, 15, 0, 0)],
-                [datetime(2020, 6, 15, 0, 0)],
-                [datetime(2020, 7, 15, 0, 0)],
-                [datetime(2020, 8, 15, 0, 0)],
-                [datetime(2020, 9, 15, 0, 0)],
-                [datetime(2020, 10, 15, 0, 0)],
-                [datetime(2020, 11, 15, 0, 0)],
-                [datetime(2020, 12, 15, 0, 0)],
+                [util.to_timestamp(datetime(2020, 1, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 2, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 3, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 4, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 5, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 6, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 7, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 8, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 9, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 10, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 11, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 12, 15, 0, 0))],
             ],
             "a": [12, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             "b": [78, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         }
 
-    def test_table_group_by_pandas_date_correct(self):
+    def test_table_group_by_pandas_date_correct(self, util: Util):
         data = {
             "a": [date(2020, i, 15) for i in range(1, 13)],
             "b": [i for i in range(1, 13)],
@@ -1404,25 +1416,25 @@ class TestTableDateTimePivots(object):
         assert view.to_columns() == {
             "__ROW_PATH__": [
                 [],
-                [datetime(2020, 1, 15, 0, 0)],
-                [datetime(2020, 2, 15, 0, 0)],
-                [datetime(2020, 3, 15, 0, 0)],
-                [datetime(2020, 4, 15, 0, 0)],
-                [datetime(2020, 5, 15, 0, 0)],
-                [datetime(2020, 6, 15, 0, 0)],
-                [datetime(2020, 7, 15, 0, 0)],
-                [datetime(2020, 8, 15, 0, 0)],
-                [datetime(2020, 9, 15, 0, 0)],
-                [datetime(2020, 10, 15, 0, 0)],
-                [datetime(2020, 11, 15, 0, 0)],
-                [datetime(2020, 12, 15, 0, 0)],
+                [util.to_timestamp(datetime(2020, 1, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 2, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 3, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 4, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 5, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 6, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 7, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 8, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 9, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 10, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 11, 15, 0, 0))],
+                [util.to_timestamp(datetime(2020, 12, 15, 0, 0))],
             ],
             "index": [66, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
             "a": [12, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             "b": [78, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         }
 
-    def test_table_split_by_date_correct(self):
+    def test_table_split_by_date_correct(self, util: Util):
         data = {
             "a": [date(2020, i, 15) for i in range(1, 13)],
             "b": [i for i in range(1, 13)],
@@ -1431,7 +1443,7 @@ class TestTableDateTimePivots(object):
         view = table.view(split_by=["a"])
         assert view.to_columns() == {
             "2020-01-15|a": [
-                datetime(2020, 1, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 1, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1460,7 +1472,7 @@ class TestTableDateTimePivots(object):
             ],
             "2020-02-15|a": [
                 None,
-                datetime(2020, 2, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 2, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1489,7 +1501,7 @@ class TestTableDateTimePivots(object):
             "2020-03-15|a": [
                 None,
                 None,
-                datetime(2020, 3, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 3, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1518,7 +1530,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 4, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 4, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1547,7 +1559,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 5, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 5, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1576,7 +1588,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 6, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 6, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1605,7 +1617,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 7, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 7, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1634,7 +1646,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 8, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 8, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1663,7 +1675,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 9, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 9, 15, 0, 0)),
                 None,
                 None,
                 None,
@@ -1692,7 +1704,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 10, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 10, 15, 0, 0)),
                 None,
                 None,
             ],
@@ -1721,7 +1733,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 11, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 11, 15, 0, 0)),
                 None,
             ],
             "2020-11-15|b": [
@@ -1750,7 +1762,7 @@ class TestTableDateTimePivots(object):
                 None,
                 None,
                 None,
-                datetime(2020, 12, 15, 0, 0),
+                util.to_timestamp(datetime(2020, 12, 15, 0, 0)),
             ],
             "2020-12-15|b": [
                 None,

@@ -62,6 +62,6 @@ fn perspective(py: Python, m: &PyModule) -> PyResult<()> {
     )?;
     // m.add_function(wrap_pyfunction!(init_tracing, m)?)?;
     m.add_function(wrap_pyfunction!(client_async::create_async_client, m)?)?;
-    m.add_function(wrap_pyfunction!(client_sync::create_sync_client, m)?)?;
+    m.add_function(wrap_pyfunction!(client_sync::_create_sync_client, m)?)?;
     Ok(())
 }

@@ -11,10 +11,10 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use std::any::Any;
-use std::cell::OnceCell;
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use futures::lock::Mutex;
 use perspective_client::config::Expressions;
@@ -27,7 +27,6 @@ use perspective_server::Server;
 use pollster::FutureExt as _;
 use pyo3::create_exception;
 use pyo3::exceptions::PyValueError;
-use pyo3::ffi::PyErr_BadArgument;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyFunction, PyList, PyString};
 use pythonize::depythonize;
@@ -36,10 +35,8 @@ use crate::client_async::PyAsyncServer;
 
 #[derive(Clone)]
 pub struct PyClient {
-    // TODO: un-public these
-    pub client: Client,
-    // TODO: Make this non-optional and default to synchronous dispatch
-    pub loop_cb: Option<Py<PyFunction>>,
+    client: Client,
+    loop_cb: Arc<RwLock<Py<PyFunction>>>,
 }
 
 #[pyclass]
@@ -61,8 +58,7 @@ impl BoxedPyFn {
 async fn process_message(
     server: Server,
     client: Client,
-    // TOOD: DON'T BE OPTIONAL
-    loop_cb: Option<Py<PyFunction>>,
+    loop_cb: Arc<RwLock<Py<PyFunction>>>,
     client_id: u32,
     msg: Vec<u8>,
 ) {
@@ -70,20 +66,19 @@ async fn process_message(
     for (_client_id, response) in batch {
         client.handle_response(&response).await.unwrap()
     }
-    if let Some(loop_cb) = loop_cb.as_ref() {
-        let fun = BoxedPyFn::new(move || {
-            for (_client_id, response) in server.poll() {
-                client.handle_response(&response).block_on().unwrap()
-            }
-        });
-        Python::with_gil(move |py| loop_cb.call1(py, (fun.into_py(py),)))
-            // TODO: Make this entire function fallible
-            .expect("Unhandled exception in loop callback");
-    } else {
+    let fun = BoxedPyFn::new(move || {
         for (_client_id, response) in server.poll() {
-            client.handle_response(&response).await.unwrap()
+            client.handle_response(&response).block_on().unwrap()
         }
-    }
+    });
+    Python::with_gil(move |py| {
+        loop_cb
+            .read()
+            .expect("lock poisoned")
+            .call1(py, (fun.into_py(py),))
+    })
+    // TODO: Make this entire function fallible
+    .expect("Unhandled exception in loop callback");
     // )
 }
 
@@ -217,20 +212,24 @@ impl PyClient {
     pub fn new(
         server: Option<PyAsyncServer>,
         client_id: Option<u32>,
-        loop_cb: Option<Py<PyFunction>>,
+        loop_cb: Py<PyFunction>,
     ) -> Self {
         let server = server.map(|x| x.server).unwrap_or_default();
         let client_id = client_id.unwrap_or_else(|| server.new_session());
+        let cb = Arc::new(RwLock::new(loop_cb));
 
         let client = Client::new({
-            let loop_cb = loop_cb.clone();
+            let loop_cb = cb.clone();
             move |client, msg| {
                 clone!(server, client, msg, loop_cb);
                 process_message(server, client, loop_cb, client_id, msg)
             }
         });
 
-        PyClient { client, loop_cb }
+        PyClient {
+            client,
+            loop_cb: cb,
+        }
     }
 
     pub async fn init(&self) -> PyResult<()> {
@@ -281,6 +280,15 @@ impl PyClient {
             client: py_client,
         })
     }
+
+    pub async fn get_hosted_table_names(&self) -> PyResult<Vec<String>> {
+        self.client.get_hosted_table_names().await.into_pyerr()
+    }
+
+    pub async fn set_loop_cb(&self, loop_cb: Py<PyFunction>) -> PyResult<()> {
+        *self.loop_cb.write().expect("lock poisoned") = loop_cb;
+        Ok(())
+    }
 }
 
 #[derive(Clone)]
@@ -326,11 +334,10 @@ impl PyTable {
             let callback_py = callback_py.clone();
             Box::new(move || {
                 Python::with_gil(|py| {
-                    if let Some(loop_cb) = loop_cb.as_ref() {
-                        loop_cb.call1(py, (&callback_py,))?;
-                    } else {
-                        callback_py.call0(py)?;
-                    }
+                    loop_cb
+                        .read()
+                        .expect("lock poisoned")
+                        .call1(py, (&callback_py,))?;
                     Ok(()) as PyResult<()>
                 })
                 .expect("`on_delete()` callback failed");
@@ -382,9 +389,6 @@ impl PyTable {
         let table_data = Python::with_gil(|py| UpdateData::from_py(py, &input))?;
         let options = UpdateOptions { format, port_id };
         table.update(table_data, options).await.into_pyerr()?;
-        if let Some(loop_cb) = self.client.loop_cb.as_ref() {
-            // loop_cb.call0().expect("loop_cb failed");
-        }
         Ok(())
     }
 
@@ -491,11 +495,10 @@ impl PyView {
             Box::new(move || {
                 let loop_cb = loop_cb.clone();
                 Python::with_gil(|py| {
-                    if let Some(loop_cb) = loop_cb.as_ref() {
-                        loop_cb.call1(py, (&callback_py,))
-                    } else {
-                        callback_py.call0(py)
-                    }
+                    loop_cb
+                        .read()
+                        .expect("lock poisoned")
+                        .call1(py, (&callback_py,))
                 })
                 .expect("`on_delete()` callback failed");
             })
@@ -533,15 +536,15 @@ impl PyView {
                     let callback = callback.clone();
                     Python::with_gil(|py| {
                         if let Some(x) = &x.delta {
-                            if let Some(loop_cb) = loop_cb.as_ref() {
-                                loop_cb.call1(py, (callback, PyBytes::new(py, x)))?;
-                            } else {
-                                callback.call1(py, (PyBytes::new(py, x),))?;
-                            }
-                        } else if let Some(loop_cb) = loop_cb.as_ref() {
-                            loop_cb.call1(py, (callback,))?;
+                            loop_cb
+                                .read()
+                                .expect("lock poisoned")
+                                .call1(py, (callback, PyBytes::new(py, x)))?;
                         } else {
-                            callback.call0(py)?;
+                            loop_cb
+                                .read()
+                                .expect("lock poisoned")
+                                .call1(py, (callback,))?;
                         }
 
                         Ok(())

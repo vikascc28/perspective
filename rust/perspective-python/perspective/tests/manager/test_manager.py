@@ -17,7 +17,7 @@ import pyarrow as pa
 from datetime import datetime
 from functools import partial
 from pytest import raises
-from perspective import Table, PerspectiveError, PerspectiveManager
+from perspective import Table, PerspectiveError, PerspectiveManager, create_sync_client
 
 data = {"a": [1, 2, 3], "b": ["a", "b", "c"]}
 
@@ -53,28 +53,25 @@ class TestPerspectiveManager(object):
             manager.host({})
 
     def test_manager_host(self):
-        manager = PerspectiveManager()
-        table = Table(data)
-        manager.host(table)
+        client = create_sync_client()
+        table = client.table(data)
         table.update({"a": [4, 5, 6], "b": ["d", "e", "f"]})
-        names = manager.get_table_names()
-        assert manager.get_table(names[0]).size() == 6
+        names = client.get_hosted_table_names()
+        assert client.open_table(names[0]).size() == 6
 
     def test_manager_host_table_transitive(self):
-        manager = PerspectiveManager()
-        table = Table(data)
-        manager.host_table("table1", table)
+        client = create_sync_client()
+        table = client.table(data, name="table1")
         table.update({"a": [4, 5, 6], "b": ["d", "e", "f"]})
-        assert manager.get_table("table1").size() == 6
+        assert client.open_table("table1").size() == 6
 
     def test_manager_get_hosted_table_names(self):
-        manager = PerspectiveManager()
-        table = Table(data)
-        manager.host_table("table1", table)
-        assert manager.get_table_names() == ["table1"]
+        client = create_sync_client()
+        client.table(data, name="table1")
+        assert client.get_hosted_table_names() == ["table1"]
 
-        manager.host_table("table2", table)
-        assert manager.get_table_names() == ["table1", "table2"]
+        client.table(data, name="table2")
+        assert client.get_hosted_table_names() == ["table1", "table2"]
 
     def test_manager_get_hosted_table_names_with_cmd(self):
         manager = PerspectiveManager()
@@ -1269,31 +1266,28 @@ class TestPerspectiveManager(object):
 
     def test_manager_set_queue_process(self, sentinel):
         s = sentinel(0)
-        manager = PerspectiveManager()
-        table = Table({"a": [1, 2, 3]})
-        manager.host_table("tbl", table)
+        def fake_queue_process(f, *args, **kwargs):
+            s.set(s.get() + 1)
+            f(*args, **kwargs)
+
+        manager = create_sync_client(fake_queue_process)
+        table = manager.table({"a": [1, 2, 3]}, name="tbl")
         table.update({"a": [4, 5, 6]})
         assert table.view().to_columns() == {"a": [1, 2, 3, 4, 5, 6]}
 
-        def fake_queue_process(f, *args, **kwargs):
-            s.set(s.get() + 1)
-            f(*args, **kwargs)
-
-        manager.set_loop_callback(fake_queue_process)
         table.update({"a": [7, 8, 9]})
-        assert s.get() == 1
+        assert s.get() == 5
 
     def test_manager_set_queue_process_before_host_table(self, sentinel):
         s = sentinel(0)
-        manager = PerspectiveManager()
-        table = Table({"a": [1, 2, 3]})
+        manager = create_sync_client()
+        table = manager.table({"a": [1, 2, 3]}, name="tbl")
 
         def fake_queue_process(f, *args, **kwargs):
             s.set(s.get() + 1)
             f(*args, **kwargs)
 
         manager.set_loop_callback(fake_queue_process)
-        manager.host_table("tbl", table)
         table.update({"a": [4, 5, 6]})
         table.update({"a": [4, 5, 6]})
 
@@ -1304,18 +1298,16 @@ class TestPerspectiveManager(object):
         # provided they manage different tables
         s = sentinel(0)
         s2 = sentinel(0)
-        manager = PerspectiveManager()
-        manager2 = PerspectiveManager()
-        table = Table({"a": [1, 2, 3]})
-        table2 = Table({"a": [1, 2, 3]})
-        manager.host_table("tbl", table)
-        manager2.host_table("tbl2", table2)
+        client = create_sync_client()
+        client2 = create_sync_client()
+        table = client.table({"a": [1, 2, 3]}, name="tbl")
+        table2 = client2.table({"a": [1, 2, 3]}, name="tbl2")
 
         def fake_queue_process(f, *args, **kwargs):
             s2.set(s2.get() + 1)
             f(*args, **kwargs)
 
-        manager2.set_loop_callback(fake_queue_process)
+        client2.set_loop_callback(fake_queue_process)
 
         table.update({"a": [4, 5, 6]})
         assert table.view().to_columns() == {"a": [1, 2, 3, 4, 5, 6]}
@@ -1326,4 +1318,4 @@ class TestPerspectiveManager(object):
         assert table.view().to_columns() == {"a": [1, 2, 3, 4, 5, 6, 7, 8, 9]}
         assert table2.view().to_columns() == {"a": [1, 2, 3, 7, 8, 9]}
         assert s.get() == 0
-        assert s2.get() == 1
+        assert s2.get() == 3

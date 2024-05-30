@@ -20,10 +20,10 @@ class TestTableInfer(object):
     def test_table_limit_wraparound_does_not_respect_partial(self):
         t = perspective.Table({"a": "float", "b": "float"}, limit=3)
         t.update([{"a": 10}, {"b": 1}, {"a": 20}, {"a": None, "b": 2}])
-        df = t.view().to_df()
+        d1 = t.view().to_columns()
 
         t2 = perspective.Table({"a": "float", "b": "float"}, limit=3)
         t2.update([{"a": 10}, {"b": 1}, {"a": 20}, {"b": 2}])
-        df2 = t2.view().to_df()
+        d2 = t2.view().to_columns()
 
-        assert df.to_columns() == df2.to_columns()
+        assert d1 == d2

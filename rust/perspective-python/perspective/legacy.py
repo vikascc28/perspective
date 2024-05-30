@@ -18,7 +18,13 @@ import sys
 
 # LEGACY API
 
-sync_client = create_sync_client()
+def default_loop_cb(fn, *args, **kwargs):
+    return fn(*args, **kwargs)
+
+sync_client = _create_sync_client(default_loop_cb)
+
+def create_sync_client(cb = default_loop_cb):
+    return _create_sync_client(cb)
 
 # import asyncio
 # import threading
@@ -108,9 +114,9 @@ table_mod.Table =  sync_client.table
 sys.modules.setdefault("perspective.table", table_mod)
 
 Table = sync_client.table
-PerspectiveManager = create_sync_client
+PerspectiveManager = lambda: _create_sync_client(default_loop_cb)
 
-async_client = create_async_client
+async_client = lambda: create_async_client(default_loop_cb)
 
 def set_threadpool_size(num_cpus):
     pass

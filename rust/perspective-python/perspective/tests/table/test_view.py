@@ -13,7 +13,7 @@
 import random
 import pandas as pd
 import numpy as np
-from perspective import PerspectiveCppError
+from perspective import PerspectivePyError
 from perspective.table import Table
 from datetime import date, datetime
 from pytest import approx, mark, raises
@@ -2062,7 +2062,7 @@ class TestView(object):
     def test_invalid_column_should_throw(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(columns=["x"])
         assert str(ex.value) == "Invalid column 'x' found in View columns.\n"
 
