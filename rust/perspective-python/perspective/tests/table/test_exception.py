@@ -11,14 +11,14 @@
 #  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 from pytest import raises
-from perspective import Table, PerspectiveError, PerspectiveCppError
+from perspective import Table, PerspectiveError  # , PerspectiveCppError
 
 
 class TestException(object):
     def test_exception_from_core(self):
         tbl = Table({"a": [1, 2, 3]})
 
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectiveError) as ex:
             # creating view with unknown column should throw
             tbl.view(group_by=["b"])
 
@@ -45,7 +45,7 @@ class TestException(object):
             == "Abort(): Cannot delete a Table with active views still linked to it - call delete() on each view, and try again."
         )
 
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectiveError) as ex:
             tbl.view(group_by=["b"])
 
         assert str(ex.value) == "Abort(): Invalid column 'b' found in View group_by.\n"

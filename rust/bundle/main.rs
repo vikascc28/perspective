@@ -45,12 +45,10 @@ fn build(pkg: Option<&str>, is_release: bool, features: Vec<String>) {
         debug_flags.push("--release");
     }
 
-    let mut cmd = Command::new("cargo");
     let features = format!("tracing/release_max_level_warn,{}", features.join(","));
-    cmd.env("RUSTFLAGS", "--cfg=web_sys_unstable_apis")
-        .args(["build"])
+    let mut cmd = Command::new("cargo");
+    cmd.args(["build"])
         .args(["--lib"])
-        .args(["--color", "always"])
         .args(["--features", &features])
         .args(["--target", "wasm32-unknown-unknown"])
         .args(["-Z", "build-std=std,panic_abort"])
@@ -82,11 +80,14 @@ fn bindgen(outdir: &Path, artifact: &str, is_release: bool) {
 
 /// Run `wasm-opt` and output the new binary on top of the old one.
 fn opt(outpath: &Path, is_release: bool) {
+    let mut debug_flags = vec![];
     if is_release {
         OptimizationOptions::new_optimize_for_size_aggressively()
             .one_caller_inline_max_size(19306)
             .run(outpath, outpath)
             .unwrap();
+
+        debug_flags.push("--release");
     }
 
     Command::new("cargo")
@@ -94,6 +95,7 @@ fn opt(outpath: &Path, is_release: bool) {
         .args(["-p", "perspective-bootstrap"])
         .args(["--target", env!("TARGET")])
         .args(["--"])
+        .args(debug_flags)
         .args([outpath])
         .execute();
 }

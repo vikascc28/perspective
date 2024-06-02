@@ -98,9 +98,6 @@ pub struct Table {
     name: String,
     client: Client,
     options: TableInitOptions,
-    // TODO: when we first worked on the bugfix for the Table(View) constructor,
-    //       we stored the (View, token) pair. Do we need to keep the View though?
-    //       if it goes out of scope, this token will become stale though.
     /// If this table is constructed from a View, the view's on_update callback
     /// is wired into this table. So, we store the token to clean it up properly
     /// on destruction.
@@ -162,7 +159,7 @@ impl Table {
     #[doc = include_str!("../../docs/table/delete.md")]
     pub async fn delete(&self) -> ClientResult<()> {
         let msg = self.client_message(ClientReq::TableDeleteReq(TableDeleteReq {}));
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableDeleteResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
@@ -171,7 +168,7 @@ impl Table {
     #[doc = include_str!("../../docs/table/columns.md")]
     pub async fn columns(&self) -> ClientResult<Vec<String>> {
         let msg = self.client_message(ClientReq::TableSchemaReq(TableSchemaReq {}));
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableSchemaResp(TableSchemaResp { schema }) => Ok(schema
                 .map(|x| x.schema.into_iter().map(|x| x.name.to_owned()).collect())
                 .unwrap()),
@@ -182,7 +179,7 @@ impl Table {
     #[doc = include_str!("../../docs/table/size.md")]
     pub async fn size(&self) -> ClientResult<usize> {
         let msg = self.client_message(ClientReq::TableSizeReq(TableSizeReq {}));
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableSizeResp(TableSizeResp { size }) => Ok(size as usize),
             resp => Err(resp.into()),
         }
@@ -191,7 +188,7 @@ impl Table {
     #[doc = include_str!("../../docs/table/schema.md")]
     pub async fn schema(&self) -> ClientResult<HashMap<String, ColumnType>> {
         let msg = self.client_message(ClientReq::TableSchemaReq(TableSchemaReq {}));
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableSchemaResp(TableSchemaResp { schema }) => Ok(schema
                 .map(|x| {
                     x.schema
@@ -207,7 +204,7 @@ impl Table {
     #[doc = include_str!("../../docs/table/make_port.md")]
     pub async fn make_port(&self) -> ClientResult<i32> {
         let msg = self.client_message(ClientReq::TableMakePortReq(TableMakePortReq {}));
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableMakePortResp(TableMakePortResp { port_id }) => Ok(port_id as i32),
             _ => Err(ClientError::Unknown("make_port".to_string())),
         }
@@ -227,7 +224,7 @@ impl Table {
         };
 
         let msg = self.client_message(ClientReq::TableOnDeleteReq(TableOnDeleteReq {}));
-        self.client.subscribe_once(&msg, Box::new(callback)).await;
+        self.client.subscribe_once(&msg, Box::new(callback)).await?;
         Ok(msg.msg_id)
     }
 
@@ -237,7 +234,7 @@ impl Table {
             id: callback_id,
         }));
 
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableRemoveDeleteResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
@@ -249,7 +246,7 @@ impl Table {
             data: Some(input.into()),
         }));
 
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableRemoveResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
@@ -261,7 +258,7 @@ impl Table {
             data: Some(input.into()),
         }));
 
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableReplaceResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
@@ -274,7 +271,7 @@ impl Table {
             port_id: options.port_id.unwrap_or(0),
         }));
 
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableUpdateResp(_) => Ok(()),
             resp => Err(resp.into()),
         }
@@ -289,7 +286,7 @@ impl Table {
             column_to_expr: expressions.0,
         }));
 
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableValidateExprResp(result) => Ok(ValidateExpressionsData {
                 errors: result.errors,
                 expression_alias: result.expression_alias,
@@ -316,7 +313,7 @@ impl Table {
             .into(),
         };
 
-        match self.client.oneshot(&msg).await {
+        match self.client.oneshot(&msg).await? {
             ClientResp::TableMakeViewResp(TableMakeViewResp { view_id })
                 if view_id == view_name =>
             {

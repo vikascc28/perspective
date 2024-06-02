@@ -24,6 +24,7 @@ mod view;
 use js_sys::{Function, Uint8Array};
 use perspective_client::config::*;
 use perspective_client::*;
+use proto::ViewOnUpdateResp;
 use ts_rs::TS;
 use utils::{ApiResult, LocalPollLoop};
 use wasm_bindgen::prelude::*;
@@ -52,7 +53,7 @@ pub fn generate_type_bindings() {
     ViewWindow::export_all().unwrap();
     TableInitOptions::export_all().unwrap();
     ViewConfigUpdate::export_all().unwrap();
-    OnUpdateArgs::export_all().unwrap();
+    ViewOnUpdateResp::export_all().unwrap();
     OnUpdateOptions::export_all().unwrap();
     UpdateOptions::export_all().unwrap()
 }
@@ -90,7 +91,13 @@ impl JsClient {
 
         JsClient {
             close: close.clone(),
-            client: Client::new(move |_client, msg| send_loop.poll(msg.clone())),
+            client: Client::new(move |_client, msg| {
+                let task = send_loop.poll(msg.to_vec());
+                async move {
+                    task.await;
+                    Ok(())
+                }
+            }),
         }
     }
 

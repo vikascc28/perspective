@@ -16,7 +16,7 @@
     "emscripten": "3.1.54",
     "llvm": "17.0.6",
     "engines": {
-        "node": ">=14.18.2 <22"
+        "node": ">=16"
     },
     "workspaces": [
         "tools/perspective-test",

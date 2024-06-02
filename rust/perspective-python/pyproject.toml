@@ -17,7 +17,6 @@ build-backend = "maturin"
 [project]
 name = "perspective-python"
 requires-python = ">=3.8"
-
 dynamic = ["version"]
 classifiers = [
     "Programming Language :: Rust",
@@ -25,5 +24,14 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=7.4.3", "ruff>=0.4.6"]
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+python_classes = ["Test", "Describe"]
+python_functions = ["test_", "it_", "and_", "but_", "they_"]
+python_files = ["test_*.py"]
+testpaths = ["tests"]

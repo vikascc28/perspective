@@ -66,7 +66,7 @@ parse_date_time(
         if (!ss.eof() && ss.peek() == 'Z') {
             ss.ignore();
         }
-        if (!ss.eof()) {
+        if (!ss.eof() && ss.peek() != EOF) {
             char c;
             ss >> c;
             LOG_DEBUG("Failed to parse datetime: expected EOF and got " << c);

@@ -94,7 +94,10 @@ pub(crate) impl UpdateData {
         } else if value.is_instance_of::<ArrayBuffer>() {
             let uint8array = Uint8Array::new(value);
             let slice = uint8array.to_vec();
-            Ok(Some(UpdateData::Arrow(slice)))
+            Ok(Some(UpdateData::Arrow(slice.into())))
+        } else if let Some(uint8array) = value.dyn_ref::<Uint8Array>() {
+            let slice = uint8array.to_vec();
+            Ok(Some(UpdateData::Arrow(slice.into())))
         } else if value.is_instance_of::<Array>() {
             let rows = JSON::stringify(value)?.as_string().into_apierror()?;
             Ok(Some(UpdateData::JsonRows(rows)))

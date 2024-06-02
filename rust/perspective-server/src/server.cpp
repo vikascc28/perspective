@@ -33,7 +33,7 @@ rust::Box<ResponseBatch>
 handle_request(
     const ProtoApiServer& self,
     std::uint32_t client_id,
-    const rust::Vec<std::uint8_t>& message
+    rust::Slice<const std::uint8_t> message
 ) {
 
     std::string message_str(message.begin(), message.end());
@@ -42,13 +42,7 @@ handle_request(
     rust::Box<ResponseBatch> batch = create_response_batch();
 
     for (const auto& response : responses) {
-        rust::Vec<std::uint8_t> result;
-        result.reserve(response.data.size());
-        for (std::uint8_t c : response.data) {
-            result.push_back(c);
-        }
-
-        batch->push_response(response.client_id, result);
+        batch->push_response(response.client_id, response.data);
     }
 
     return batch;
@@ -60,13 +54,7 @@ poll(const ProtoApiServer& s) {
     std::vector<ProtoApiResponse> responses = self.poll();
     rust::Box<ResponseBatch> batch = create_response_batch();
     for (const auto& response : responses) {
-        rust::Vec<std::uint8_t> result;
-        result.reserve(response.data.size());
-        for (std::uint8_t c : response.data) {
-            result.push_back(c);
-        }
-
-        batch->push_response(response.client_id, result);
+        batch->push_response(response.client_id, response.data);
     }
 
     return batch;

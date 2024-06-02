@@ -10,23 +10,21 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use perspective_client::{assert_table_api, assert_view_api};
-use perspective_server::Server;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyFunction, PyString};
 use pyo3_asyncio::tokio::future_into_py;
 
 use super::python::*;
+use crate::server::PyAsyncServer;
 
 fn get_arrow_table_cls() -> Option<Py<PyAny>> {
     let res: PyResult<Py<PyAny>> = Python::with_gil(|py| {
         let pyarrow = PyModule::import(py, "pyarrow")?;
         Ok(pyarrow.getattr("Table")?.to_object(py))
     });
+
     match res {
         Ok(x) => Some(x),
         Err(_) => {
@@ -105,70 +103,6 @@ fn pandas_to_arrow_bytes(py: Python, df: &PyAny) -> PyResult<Py<PyBytes>> {
         .getattr("Table")?
         .call_method1("from_pandas", (df,))?;
     to_arrow_bytes(py, table)
-}
-
-#[pyclass]
-#[derive(Clone)]
-pub struct PyAsyncSession {
-    pub client_id: u32,
-}
-
-#[pyclass]
-#[derive(Clone)]
-pub struct PyAsyncServer {
-    pub server: Server,
-}
-
-impl Default for PyAsyncServer {
-    fn default() -> Self {
-        Self {
-            server: Server::new(),
-        }
-    }
-}
-
-#[allow(non_local_definitions)]
-#[pymethods]
-impl PyAsyncServer {
-    #[new]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn global_session_dispatcher(&mut self, py: Python, response_cb: Py<PyFunction>) -> u32 {
-        let client_id = self
-            .server
-            .register_session_cb(Arc::new(move |client_id, resp| {
-                let cb = response_cb.clone();
-                let resp = resp.clone();
-                let res: PyResult<_> =
-                    Python::with_gil(move |py| cb.call1(py, (client_id, PyBytes::new(py, &resp))));
-                res.expect("Failed to call response callback");
-            }));
-        client_id
-    }
-
-    pub fn cleanup_session_id(&mut self, client_id: u32) {
-        self.server.unregister_session_cb(client_id);
-    }
-
-    pub fn handle_request<'a>(
-        &self,
-        py: Python<'a>,
-        client_id: u32,
-        data: Vec<u8>,
-    ) -> PyResult<()> {
-        let server = self.server.clone();
-        // TODO: Make this return a boolean for "should_poll" to determine whether we
-        // immediately       schedule a poll after this request.
-        server.handle_request(client_id, &data);
-        Ok(())
-    }
-
-    pub fn poll<'a>(&self, py: Python<'a>) -> PyResult<()> {
-        self.server.poll();
-        Ok(())
-    }
 }
 
 #[pyclass]
@@ -344,7 +278,7 @@ impl PyAsyncTable {
     pub fn validate_expressions<'a>(
         &self,
         py: Python<'a>,
-        expressions: HashMap<String, String>,
+        expressions: Py<PyAny>,
     ) -> PyResult<&'a PyAny> {
         let table = self.0.clone();
         future_into_py(

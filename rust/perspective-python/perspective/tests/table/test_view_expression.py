@@ -16,7 +16,7 @@ from string import ascii_letters
 from pytest import raises
 from datetime import date, datetime
 from time import mktime
-from perspective import Table, PerspectiveCppError
+from perspective import Table  # , PerspectiveCppError
 import pytest
 from .test_view import compare_delta
 
@@ -151,12 +151,11 @@ class TestViewExpression(object):
             "'abcdefg'": ["abcdefg" for _ in range(4)],
             "true and false": [False for _ in range(4)],
             'float("a") > 2 ? null : 1': [1, 1, None, None],
-            "today()": [today for _ in range(4)],
+            "today()": [1717113600000 for _ in range(4)],
             "length('abcd')": [4 for _ in range(4)],
         }
 
         validated = table.validate_expressions(expressions)
-
         for expr in expressions:
             assert validated["expression_alias"][expr] == expr
 

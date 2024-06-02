@@ -144,7 +144,7 @@ test.describe("WebSocketManager", function () {
         await table.delete();
     });
 
-    test("Calls `update` and sends arraybuffers using `binary_length` multiple times", async () => {
+    test("Calls `update` and sends `Uint8Array` using `binary_length` multiple times", async () => {
         const data = [{ x: 1 }];
         const table = await perspective.table(data, { name: "test" });
         const view = await table.view();
@@ -161,7 +161,7 @@ test.describe("WebSocketManager", function () {
         await table.delete();
     });
 
-    test("Calls `update` and sends arraybuffers using `on_update`", async () => {
+    test("Calls `update` and sends `Uint8Array` using `on_update`", async () => {
         const data = [{ x: 1 }];
         const table = await perspective.table(data, { name: "test" });
         const view = await table.view();
@@ -174,7 +174,7 @@ test.describe("WebSocketManager", function () {
 
         const updater = async (updated) => {
             expect(updated.port_id).toEqual(update_port);
-            expect(updated.delta instanceof ArrayBuffer).toEqual(true);
+            expect(updated.delta instanceof Uint8Array).toEqual(true);
             expect(updated.delta.byteLength).toBeGreaterThan(0);
             await client.terminate();
             await table.delete();

@@ -588,14 +588,3 @@ namespace server {
 
 } // namespace server
 } // namespace perspective
-
-#ifndef PSP_ENABLE_WASM
-
-PERSPECTIVE_EXPORT extern "C" void psp_global_session_handler(
-    std::uint32_t client_id, const char* data, std::uint32_t length
-);
-
-PERSPECTIVE_EXPORT extern "C" void
-psp_global_session_handler_cleanup(void* server);
-
-#endif

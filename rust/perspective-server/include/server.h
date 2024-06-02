@@ -25,7 +25,7 @@ std::uint32_t new_session(const ProtoApiServer& self);
 rust::Box<ResponseBatch> handle_request(
     const ProtoApiServer& self,
     std::uint32_t client_id,
-    const rust::Vec<std::uint8_t>& message
+    rust::Slice<const std::uint8_t> message
 );
 
 rust::Box<ResponseBatch> poll(const ProtoApiServer& self);

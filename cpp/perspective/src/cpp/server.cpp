@@ -668,14 +668,6 @@ ProtoServer::handle_request(
         serialized_responses.emplace_back(str_resp);
     }
 
-#ifndef PSP_ENABLE_WASM
-    for (const auto& str_resp : serialized_responses) {
-        psp_global_session_handler(
-            str_resp.client_id, str_resp.data.data(), str_resp.data.size()
-        );
-    }
-#endif
-
     return serialized_responses;
 }
 
@@ -686,11 +678,6 @@ ProtoServer::poll() {
         ProtoServerResp<std::string> str_resp;
         str_resp.data = resp.data.SerializeAsString();
         str_resp.client_id = resp.client_id;
-#ifndef PSP_ENABLE_WASM
-        psp_global_session_handler(
-            str_resp.client_id, str_resp.data.data(), str_resp.data.size()
-        );
-#endif
         out.emplace_back(str_resp);
     }
 
@@ -783,7 +770,7 @@ parse_format_options(
         viewport.has_end_row()
             ? viewport.end_row()
             : (viewport_height != 0 ? out.start_row + viewport_height : max_rows
-              )
+            )
     );
     out.end_col = std::min(
         max_cols,

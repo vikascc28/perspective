@@ -40,6 +40,7 @@ cmake = "0.1.50"
 num_cpus = "1.16.0"
 
 [dependencies]
+async-lock = "2.5.0"
 cxx = "1.0.115"
 tracing = { version = ">=0.1.36" }
 

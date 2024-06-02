@@ -12,31 +12,27 @@
 
 use std::any::Any;
 use std::collections::HashMap;
-use std::ops::DerefMut;
 use std::str::FromStr;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
+use async_lock::RwLock;
 use futures::lock::Mutex;
-use perspective_client::config::Expressions;
+use perspective_client::proto::ViewOnUpdateResp;
 use perspective_client::{
     assert_table_api, assert_view_api, clone, Client, ClientError, IntoBoxFnPinBoxFut,
-    OnUpdateArgs, OnUpdateMode, OnUpdateOptions, Table, TableData, TableInitOptions, UpdateData,
-    UpdateOptions, View, ViewWindow,
+    OnUpdateMode, OnUpdateOptions, Table, TableData, TableInitOptions, UpdateData, UpdateOptions,
+    View, ViewWindow,
 };
-use perspective_server::Server;
-use pollster::FutureExt as _;
 use pyo3::create_exception;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyFunction, PyList, PyString};
-use pythonize::depythonize;
-
-use crate::client_async::PyAsyncServer;
+use pythonize::depythonize_bound;
 
 #[derive(Clone)]
 pub struct PyClient {
     client: Client,
-    loop_cb: Arc<RwLock<Py<PyFunction>>>,
+    loop_cb: Arc<RwLock<Option<Py<PyFunction>>>>,
 }
 
 #[pyclass]
@@ -55,32 +51,32 @@ impl BoxedPyFn {
     }
 }
 
-async fn process_message(
-    server: Server,
-    client: Client,
-    loop_cb: Arc<RwLock<Py<PyFunction>>>,
-    client_id: u32,
-    msg: Vec<u8>,
-) {
-    let batch = server.handle_request(client_id, &msg);
-    for (_client_id, response) in batch {
-        client.handle_response(&response).await.unwrap()
-    }
-    let fun = BoxedPyFn::new(move || {
-        for (_client_id, response) in server.poll() {
-            client.handle_response(&response).block_on().unwrap()
-        }
-    });
-    Python::with_gil(move |py| {
-        loop_cb
-            .read()
-            .expect("lock poisoned")
-            .call1(py, (fun.into_py(py),))
-    })
-    // TODO: Make this entire function fallible
-    .expect("Unhandled exception in loop callback");
-    // )
-}
+// async fn process_message(
+//     server: Server,
+//     client: Client,
+//     loop_cb: Arc<RwLock<Py<PyFunction>>>,
+//     client_id: u32,
+//     msg: Vec<u8>,
+// ) {
+//     let batch = server.handle_request(client_id, &msg);
+//     for (_client_id, response) in batch {
+//         client.handle_response(&response).await.unwrap()
+//     }
+//     let fun = BoxedPyFn::new(move || {
+//         for (_client_id, response) in server.poll() {
+//             client.handle_response(&response).block_on().unwrap()
+//         }
+//     });
+//     Python::with_gil(move |py| {
+//         loop_cb
+//             .read()
+//             .expect("lock poisoned")
+//             .call1(py, (fun.into_py(py),))
+//     })
+//     // TODO: Make this entire function fallible
+//     .expect("Unhandled exception in loop callback");
+//     // )
+// }
 
 #[extend::ext]
 pub impl<T> Result<T, ClientError> {
@@ -99,7 +95,7 @@ create_exception!(
 );
 
 #[pyfunction]
-fn default_serializer(obj: &PyAny) -> PyResult<String> {
+fn default_serializer(obj: &Bound<PyAny>) -> PyResult<String> {
     if let Ok(dt) = obj.downcast::<pyo3::types::PyDateTime>() {
         Ok(dt.str()?.to_string())
     } else if let Ok(d) = obj.downcast::<pyo3::types::PyDate>() {
@@ -116,29 +112,31 @@ fn default_serializer(obj: &PyAny) -> PyResult<String> {
 #[extend::ext]
 impl UpdateData {
     fn from_py_partial(py: Python<'_>, input: &Py<PyAny>) -> Result<Option<UpdateData>, PyErr> {
-        if let Ok(pybytes) = input.downcast::<PyBytes>(py) {
-            Ok(Some(UpdateData::Arrow(pybytes.as_bytes().to_vec())))
-        } else if let Ok(pystring) = input.downcast::<PyString>(py) {
+        if let Ok(pybytes) = input.downcast_bound::<PyBytes>(py) {
+            Ok(Some(UpdateData::Arrow(pybytes.as_bytes().to_vec().into())))
+        } else if let Ok(pystring) = input.downcast_bound::<PyString>(py) {
             Ok(Some(UpdateData::Csv(pystring.extract::<String>()?)))
-        } else if let Ok(pylist) = input.downcast::<PyList>(py) {
-            let json_module = PyModule::import(py, "json")?;
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("default", wrap_pyfunction!(default_serializer, py)?)?;
-            let string = json_module.call_method("dumps", (pylist,), Some(kwargs))?;
+        } else if let Ok(pylist) = input.downcast_bound::<PyList>(py) {
+            let json_module = PyModule::import_bound(py, "json")?;
+            let kwargs = PyDict::new_bound(py);
+            kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
+            let string = json_module.call_method("dumps", (pylist,), Some(&kwargs))?;
             Ok(Some(UpdateData::JsonRows(string.extract::<String>()?)))
-        } else if let Ok(pydict) = input.downcast::<PyDict>(py) {
-            if pydict.keys().len() == 0 {
-                return Err(PyValueError::new_err("Cannot infer type of emtpy dict"));
+        } else if let Ok(pydict) = input.downcast_bound::<PyDict>(py) {
+            if pydict.keys().is_empty() {
+                return Err(PyValueError::new_err("Cannot infer type of empty dict"));
             }
+
             let first_key = pydict.keys().get_item(0)?;
             let first_item = pydict
                 .get_item(first_key)?
                 .ok_or_else(|| PyValueError::new_err("Bad Input"))?;
+
             if first_item.downcast::<PyList>().is_ok() {
-                let json_module = PyModule::import(py, "json")?;
-                let kwargs = PyDict::new(py);
-                kwargs.set_item("default", wrap_pyfunction!(default_serializer, py)?)?;
-                let string = json_module.call_method("dumps", (pydict,), Some(kwargs))?;
+                let json_module = PyModule::import_bound(py, "json")?;
+                let kwargs = PyDict::new_bound(py);
+                kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
+                let string = json_module.call_method("dumps", (pydict,), Some(&kwargs))?;
                 Ok(Some(UpdateData::JsonColumns(string.extract::<String>()?)))
             } else {
                 Ok(None)
@@ -165,24 +163,24 @@ impl TableData {
     fn from_py(py: Python<'_>, input: Py<PyAny>) -> Result<TableData, PyErr> {
         if let Some(update) = UpdateData::from_py_partial(py, &input)? {
             Ok(TableData::Update(update))
-        } else if let Ok(pylist) = input.downcast::<PyList>(py) {
-            let json_module = PyModule::import(py, "json")?;
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("default", wrap_pyfunction!(default_serializer, py)?)?;
-            let string = json_module.call_method("dumps", (pylist,), Some(kwargs))?;
+        } else if let Ok(pylist) = input.downcast_bound::<PyList>(py) {
+            let json_module = PyModule::import_bound(py, "json")?;
+            let kwargs = PyDict::new_bound(py);
+            kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
+            let string = json_module.call_method("dumps", (pylist,), Some(&kwargs))?;
             Ok(TableData::Update(UpdateData::JsonRows(
                 string.extract::<String>()?,
             )))
-        } else if let Ok(pydict) = input.downcast::<PyDict>(py) {
+        } else if let Ok(pydict) = input.downcast_bound::<PyDict>(py) {
             let first_key = pydict.keys().get_item(0)?;
             let first_item = pydict
                 .get_item(first_key)?
                 .ok_or_else(|| PyValueError::new_err("Bad Input"))?;
             if first_item.downcast::<PyList>().is_ok() {
-                let json_module = PyModule::import(py, "json")?;
-                let kwargs = PyDict::new(py);
-                kwargs.set_item("default", wrap_pyfunction!(default_serializer, py)?)?;
-                let string = json_module.call_method("dumps", (pydict,), Some(kwargs))?;
+                let json_module = PyModule::import_bound(py, "json")?;
+                let kwargs = PyDict::new_bound(py);
+                kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
+                let string = json_module.call_method("dumps", (pydict,), Some(&kwargs))?;
                 Ok(TableData::Update(UpdateData::JsonColumns(
                     string.extract::<String>()?,
                 )))
@@ -209,32 +207,41 @@ impl TableData {
 const PSP_CALLBACK_ID: &str = "__PSP_CALLBACK_ID__";
 
 impl PyClient {
-    pub fn new(
-        server: Option<PyAsyncServer>,
-        client_id: Option<u32>,
-        loop_cb: Py<PyFunction>,
-    ) -> Self {
-        let server = server.map(|x| x.server).unwrap_or_default();
-        let client_id = client_id.unwrap_or_else(|| server.new_session());
-        let cb = Arc::new(RwLock::new(loop_cb));
-
+    pub fn new(handle_request: Py<PyFunction>) -> Self {
         let client = Client::new({
-            let loop_cb = cb.clone();
-            move |client, msg| {
-                clone!(server, client, msg, loop_cb);
-                process_message(server, client, loop_cb, client_id, msg)
+            move |_client, msg| {
+                let msg = msg.to_vec();
+                clone!(handle_request);
+                async move {
+                    // TODO this is not great error handling, would be nice if
+                    // we could tunnel errors back to the caller which sent the
+                    // message.
+                    Python::with_gil(move |py| {
+                        handle_request.call1(py, (PyBytes::new_bound(py, &msg),))
+                    })
+                    .map_err(|_| ClientError::Internal("Internal Error".to_string()))?;
+                    Ok(())
+                }
             }
         });
 
         PyClient {
             client,
-            loop_cb: cb,
+            loop_cb: Arc::default(),
         }
     }
 
-    pub async fn init(&self) -> PyResult<()> {
-        self.client.init().await.into_pyerr()
+    pub async fn handle_response(&self, bytes: Py<PyBytes>) -> PyResult<()> {
+        self.client
+            .handle_response(Python::with_gil(|py| bytes.as_bytes(py)))
+            .await
+            .into_pyerr()
     }
+
+    // // TODO
+    // pub async fn init(&self) -> PyResult<()> {
+    //     self.client.init().await.into_pyerr()
+    // }
 
     pub async fn table(
         &self,
@@ -246,8 +253,11 @@ impl PyClient {
         let client = self.client.clone();
         let py_client = self.clone();
         let table = Python::with_gil(|py| {
-            let mut options = TableInitOptions::default();
-            options.name = name.map(|x| x.extract::<String>(py)).transpose()?;
+            let mut options = TableInitOptions {
+                name: name.map(|x| x.extract::<String>(py)).transpose()?,
+                ..TableInitOptions::default()
+            };
+
             match (limit, index) {
                 (None, None) => {},
                 (None, Some(index)) => {
@@ -286,7 +296,7 @@ impl PyClient {
     }
 
     pub async fn set_loop_cb(&self, loop_cb: Py<PyFunction>) -> PyResult<()> {
-        *self.loop_cb.write().expect("lock poisoned") = loop_cb;
+        *self.loop_cb.write().await = Some(loop_cb);
         Ok(())
     }
 }
@@ -329,15 +339,16 @@ impl PyTable {
     }
 
     pub async fn on_delete(&self, callback_py: Py<PyFunction>) -> PyResult<u32> {
-        let loop_cb = self.client.loop_cb.clone();
+        let loop_cb = self.client.loop_cb.read().await.clone();
         let callback = {
             let callback_py = callback_py.clone();
             Box::new(move || {
                 Python::with_gil(|py| {
-                    loop_cb
-                        .read()
-                        .expect("lock poisoned")
-                        .call1(py, (&callback_py,))?;
+                    if let Some(loop_cb) = &loop_cb {
+                        loop_cb.call1(py, (&callback_py,))?;
+                    } else {
+                        callback_py.call0(py)?;
+                    }
                     Ok(()) as PyResult<()>
                 })
                 .expect("`on_delete()` callback failed");
@@ -392,15 +403,14 @@ impl PyTable {
         Ok(())
     }
 
-    pub async fn validate_expressions(
-        &self,
-        expressions: HashMap<String, String>,
-    ) -> PyResult<Py<PyAny>> {
+    pub async fn validate_expressions(&self, expressions: Py<PyAny>) -> PyResult<Py<PyAny>> {
+        let expressions =
+            Python::with_gil(|py| depythonize_bound(expressions.into_bound(py).into_any()))?;
         let records = self
             .table
             .lock()
             .await
-            .validate_expressions(Expressions(expressions))
+            .validate_expressions(expressions)
             .await
             .into_pyerr()?;
 
@@ -417,8 +427,11 @@ impl PyTable {
 
     pub async fn view(&self, kwargs: Option<Py<PyDict>>) -> PyResult<PyView> {
         let config = kwargs
-            .map(|config| Python::with_gil(|py| depythonize(config.as_ref(py))))
+            .map(|config| {
+                Python::with_gil(|py| depythonize_bound(config.into_bound(py).into_any()))
+            })
             .transpose()?;
+
         let view = self.table.lock().await.view(config).await.into_pyerr()?;
         Ok(PyView {
             view: Arc::new(Mutex::new(view)),
@@ -491,14 +504,17 @@ impl PyView {
     pub async fn on_delete(&self, callback_py: Py<PyFunction>) -> PyResult<u32> {
         let callback = {
             let callback_py = callback_py.clone();
-            let loop_cb = self.client.loop_cb.clone();
+            let loop_cb = self.client.loop_cb.read().await.clone();
             Box::new(move || {
                 let loop_cb = loop_cb.clone();
                 Python::with_gil(|py| {
-                    loop_cb
-                        .read()
-                        .expect("lock poisoned")
-                        .call1(py, (&callback_py,))
+                    if let Some(loop_cb) = &loop_cb {
+                        loop_cb.call1(py, (&callback_py,))?;
+                    } else {
+                        callback_py.call0(py)?;
+                    }
+
+                    Ok(()) as PyResult<()>
                 })
                 .expect("`on_delete()` callback failed");
             })
@@ -527,25 +543,24 @@ impl PyView {
     }
 
     pub async fn on_update(&self, callback: Py<PyFunction>, mode: Option<String>) -> PyResult<u32> {
-        let loop_cb = self.client.loop_cb.clone();
-        let callback = move |x: OnUpdateArgs| {
+        let loop_cb = self.client.loop_cb.read().await.clone();
+        let callback = move |x: ViewOnUpdateResp| {
             let loop_cb = loop_cb.clone();
             let callback = callback.clone();
             async move {
                 let aggregate_errors: PyResult<()> = {
                     let callback = callback.clone();
                     Python::with_gil(|py| {
-                        if let Some(x) = &x.delta {
-                            loop_cb
-                                .read()
-                                .expect("lock poisoned")
-                                .call1(py, (callback, PyBytes::new(py, x)))?;
-                        } else {
-                            loop_cb
-                                .read()
-                                .expect("lock poisoned")
-                                .call1(py, (callback,))?;
-                        }
+                        match (&x.delta, &loop_cb) {
+                            (None, None) => callback.call0(py)?,
+                            (None, Some(loop_cb)) => loop_cb.call1(py, (&callback,))?,
+                            (Some(delta), None) => {
+                                callback.call1(py, (PyBytes::new_bound(py, delta),))?
+                            },
+                            (Some(delta), Some(loop_cb)) => {
+                                loop_cb.call1(py, (callback, PyBytes::new_bound(py, delta)))?
+                            },
+                        };
 
                         Ok(())
                     })
@@ -580,25 +595,28 @@ impl PyView {
     }
 
     pub async fn to_arrow(&self, window: Option<Py<PyDict>>) -> PyResult<Py<PyBytes>> {
-        let window: ViewWindow = Python::with_gil(|py| window.map(|x| depythonize(x.as_ref(py))))
-            .transpose()?
-            .unwrap_or_default();
+        let window: ViewWindow =
+            Python::with_gil(|py| window.map(|x| depythonize_bound(x.into_bound(py).into_any())))
+                .transpose()?
+                .unwrap_or_default();
         let arrow = self.view.lock().await.to_arrow(window).await.into_pyerr()?;
-        Ok(Python::with_gil(|py| PyBytes::new(py, &arrow).into()))
+        Ok(Python::with_gil(|py| PyBytes::new_bound(py, &arrow).into()))
     }
 
     pub async fn to_csv(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
-        let window: ViewWindow = Python::with_gil(|py| window.map(|x| depythonize(x.as_ref(py))))
-            .transpose()?
-            .unwrap_or_default();
+        let window: ViewWindow =
+            Python::with_gil(|py| window.map(|x| depythonize_bound(x.into_bound(py).into_any())))
+                .transpose()?
+                .unwrap_or_default();
 
         self.view.lock().await.to_csv(window).await.into_pyerr()
     }
 
     pub async fn to_columns_string(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
-        let window: ViewWindow = Python::with_gil(|py| window.map(|x| depythonize(x.as_ref(py))))
-            .transpose()?
-            .unwrap_or_default();
+        let window: ViewWindow =
+            Python::with_gil(|py| window.map(|x| depythonize_bound(x.into_bound(py).into_any())))
+                .transpose()?
+                .unwrap_or_default();
 
         self.view
             .lock()
@@ -609,9 +627,10 @@ impl PyView {
     }
 
     pub async fn to_json_string(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
-        let window: ViewWindow = Python::with_gil(|py| window.map(|x| depythonize(x.as_ref(py))))
-            .transpose()?
-            .unwrap_or_default();
+        let window: ViewWindow =
+            Python::with_gil(|py| window.map(|x| depythonize_bound(x.into_bound(py).into_any())))
+                .transpose()?
+                .unwrap_or_default();
 
         self.view
             .lock()

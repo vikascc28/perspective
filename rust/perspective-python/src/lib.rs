@@ -14,10 +14,11 @@
 #![feature(lazy_cell)]
 
 mod client;
+mod server;
 
 use client::*;
 use pyo3::prelude::*;
-use pyo3_asyncio::tokio::re_exports::runtime::Builder;
+// use pyo3_asyncio::tokio::re_exports::runtime::Builder;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
@@ -39,29 +40,29 @@ fn init_tracing() {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn perspective(py: Python, m: &PyModule) -> PyResult<()> {
+fn perspective(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     init_tracing();
-    let mut builder = Builder::new_multi_thread();
-    if let Some(threads) = std::env::var("PSP_PY_WORKER_THREADS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-    {
-        builder.worker_threads(threads);
-    }
-    builder.enable_all();
-    pyo3_asyncio::tokio::init(builder);
-    m.add_class::<client_async::PyAsyncClient>()?;
+    // let mut builder = Builder::new_multi_thread();
+    // if let Some(threads) = std::env::var("PSP_PY_WORKER_THREADS")
+    //     .ok()
+    //     .and_then(|v| v.parse().ok())
+    // {
+    //     builder.worker_threads(threads);
+    // }
+    // builder.enable_all();
+    // pyo3_asyncio::tokio::init(builder);
+    // m.add_class::<client_async::PyAsyncClient>()?;
     m.add_class::<client_sync::PySyncClient>()?;
-    m.add_class::<client_async::PyAsyncTable>()?;
-    m.add_class::<client_async::PyAsyncView>()?;
-    m.add_class::<client_async::PyAsyncServer>()?;
-    // m.add_class::<client::PerspectivePyError>()?;
+    // m.add_class::<client_async::PyAsyncTable>()?;
+    // m.add_class::<client_async::PyAsyncView>()?;
+    m.add_class::<server::PySyncServer>()?;
+    m.add_class::<server::PySyncSession>()?;
     m.add(
         "PerspectivePyError",
-        py.get_type::<client::PerspectivePyError>(),
+        py.get_type_bound::<client::PerspectivePyError>(),
     )?;
-    // m.add_function(wrap_pyfunction!(init_tracing, m)?)?;
-    m.add_function(wrap_pyfunction!(client_async::create_async_client, m)?)?;
-    m.add_function(wrap_pyfunction!(client_sync::_create_sync_client, m)?)?;
+
+    // m.add_function(wrap_pyfunction!(client_async::create_async_client, m)?)?;
+    // m.add_function(wrap_pyfunction!(client_sync::_create_sync_client, m)?)?;
     Ok(())
 }

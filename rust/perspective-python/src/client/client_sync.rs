@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use perspective_client::{assert_table_api, assert_view_api};
-use pollster::FutureExt as _;
+use pollster::FutureExt;
 use pyo3::prelude::*;
 use pyo3::types::*;
 
@@ -24,6 +24,16 @@ pub struct PySyncClient(PyClient);
 
 #[pymethods]
 impl PySyncClient {
+    #[new]
+    pub fn new(callback: Py<PyFunction>) -> PyResult<Self> {
+        let client = PyClient::new(callback);
+        Ok(PySyncClient(client))
+    }
+
+    pub fn handle_response(&self, response: Py<PyBytes>) -> PyResult<()> {
+        self.0.handle_response(response).block_on()
+    }
+
     #[doc = include_str!("../../docs/table.md")]
     #[pyo3(signature = (input, limit=None, index=None, name=None))]
     pub fn table(
@@ -38,26 +48,22 @@ impl PySyncClient {
         ))
     }
 
+    #[doc = include_str!("../../docs/client/open_table.md")]
     pub fn open_table(&self, name: String) -> PyResult<PySyncTable> {
         let client = self.0.clone();
         let table = client.open_table(name).block_on()?;
         Ok(PySyncTable(table))
     }
 
+    #[doc = include_str!("../../docs/client/get_hosted_table_names.md")]
     pub fn get_hosted_table_names(&self) -> PyResult<Vec<String>> {
         self.0.get_hosted_table_names().block_on()
     }
-    
+
+    #[doc = include_str!("../../docs/client/set_loop_callback.md")]
     pub fn set_loop_callback(&self, loop_cb: Py<PyFunction>) -> PyResult<()> {
         self.0.set_loop_cb(loop_cb).block_on()
     }
-}
-
-/// Create a new `Client` instance with a _synchronous_, _blocking_ API.
-#[pyfunction]
-#[pyo3(text_signature = "(loop_cb=None)")]
-pub fn _create_sync_client(loop_cb: Py<PyFunction>) -> PyResult<PySyncClient> {
-    Ok(PySyncClient(PyClient::new(None, None, loop_cb)))
 }
 
 #[pyclass]
@@ -121,7 +127,7 @@ impl PySyncTable {
     }
 
     #[doc = include_str!("../../docs/table/validate_expressions.md")]
-    fn validate_expressions(&self, expression: HashMap<String, String>) -> PyResult<Py<PyAny>> {
+    fn validate_expressions(&self, expression: Py<PyAny>) -> PyResult<Py<PyAny>> {
         let table = self.0.clone();
         table.validate_expressions(expression).block_on()
     }
@@ -180,21 +186,33 @@ impl PySyncView {
     }
 
     #[pyo3(signature = (**window))]
-    fn to_records<'a>(&self, py: Python<'a>, window: Option<Py<PyDict>>) -> PyResult<&'a PyAny> {
+    fn to_records<'a>(
+        &self,
+        py: Python<'a>,
+        window: Option<Py<PyDict>>,
+    ) -> PyResult<Bound<'a, PyAny>> {
         let json = self.0.to_json_string(window).block_on()?;
-        let json_module = PyModule::import(py, "json")?;
+        let json_module = PyModule::import_bound(py, "json")?;
         json_module.call_method1("loads", (json,))
     }
 
     #[pyo3(signature = (**window))]
-    fn to_json<'a>(&self, py: Python<'a>, window: Option<Py<PyDict>>) -> PyResult<&'a PyAny> {
+    fn to_json<'a>(
+        &self,
+        py: Python<'a>,
+        window: Option<Py<PyDict>>,
+    ) -> PyResult<Bound<'a, PyAny>> {
         self.to_records(py, window)
     }
 
     #[pyo3(signature = (**window))]
-    fn to_columns<'a>(&self, py: Python<'a>, window: Option<Py<PyDict>>) -> PyResult<&'a PyAny> {
+    fn to_columns<'a>(
+        &self,
+        py: Python<'a>,
+        window: Option<Py<PyDict>>,
+    ) -> PyResult<Bound<'a, PyAny>> {
         let json = self.0.to_columns_string(window).block_on()?;
-        let json_module = PyModule::import(py, "json")?;
+        let json_module = PyModule::import_bound(py, "json")?;
         json_module.call_method1("loads", (json,))
     }
 

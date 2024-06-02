@@ -10,56 +10,61 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use std::ops::Deref;
+use std::sync::Arc;
 
-use cxx::CxxString;
-pub use ffi_internal::*;
+use perspective_client::clone;
+use perspective_server::{Server, Session};
+use pollster::FutureExt;
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyFunction};
 
-#[cxx::bridge]
-mod ffi_internal {
-    extern "Rust" {
-        type ResponseBatch;
-        fn create_response_batch() -> Box<ResponseBatch>;
-        fn push_response(self: &mut ResponseBatch, client_id: u32, resp: &CxxString);
-    }
-    unsafe extern "C++" {
-        include!("server.h");
-        type ProtoApiServer;
-        fn new_proto_server() -> UniquePtr<ProtoApiServer>;
-        fn new_session(server: &ProtoApiServer) -> u32;
-        fn handle_request(
-            server: &ProtoApiServer,
-            client_id: u32,
-            val: &[u8],
-        ) -> Box<ResponseBatch>;
-        fn poll(server: &ProtoApiServer) -> Box<ResponseBatch>;
-    }
+#[pyclass]
+#[derive(Clone)]
+pub struct PySyncSession {
+    session: Arc<Session<PyErr>>,
 }
 
-pub struct Response {
-    pub client_id: u32,
-    pub resp: Vec<u8>,
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct PySyncServer {
+    pub server: Server<PyErr>,
 }
-pub struct ResponseBatch(pub Vec<Response>);
 
-impl Deref for ResponseBatch {
-    type Target = Vec<Response>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+#[pymethods]
+impl PySyncServer {
+    #[new]
+    pub fn new() -> Self {
+        Self::default()
     }
-}
 
-impl ResponseBatch {
-    fn push_response(&mut self, client_id: u32, resp: &CxxString) {
-        let resp = resp.as_bytes().to_vec();
-        self.0.push(Response { client_id, resp });
+    pub fn new_session(&self, _py: Python, response_cb: Py<PyFunction>) -> PySyncSession {
+        let session = self
+            .server
+            .new_session(move |response| {
+                clone!(response_cb);
+                Python::with_gil(move |py| {
+                    response_cb.call1(py, (PyBytes::new_bound(py, response),))
+                })?;
+                Ok(())
+            })
+            .block_on();
+
+        PySyncSession {
+            session: Arc::new(session),
+        }
     }
 }
 
-fn create_response_batch() -> Box<ResponseBatch> {
-    Box::new(ResponseBatch(vec![]))
-}
+#[allow(non_local_definitions)]
+#[pymethods]
+impl PySyncSession {
+    pub fn handle_request(&self, _py: Python<'_>, data: Vec<u8>) -> PyResult<()> {
+        // TODO: Make this return a boolean for "should_poll" to determine whether we
+        // immediately schedule a poll after this request.
+        self.session.handle_request(&data).block_on()
+    }
 
-unsafe impl Send for ffi_internal::ProtoApiServer {}
-unsafe impl Sync for ffi_internal::ProtoApiServer {}
+    pub fn poll(&self, _py: Python<'_>) -> PyResult<()> {
+        self.session.poll().block_on()
+    }
+}

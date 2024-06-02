@@ -10,21 +10,53 @@
 #  ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 #  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-from asyncio import AbstractEventLoop
-from typing import Optional
-from .perspective import *
+# from asyncio import AbstractEventLoop
+# from typing import Optional
+from .perspective import PySyncServer, PySyncClient
 import types
 import sys
 
 # LEGACY API
 
+
 def default_loop_cb(fn, *args, **kwargs):
     return fn(*args, **kwargs)
 
-sync_client = _create_sync_client(default_loop_cb)
 
-def create_sync_client(cb = default_loop_cb):
-    return _create_sync_client(cb)
+def create_sync_client(cb=default_loop_cb):
+    def handle_sync_client(bytes):
+        sync_session.handle_request(bytes)
+        default_loop_cb(lambda: sync_session.poll())
+
+    def handle_new_session(bytes):
+        default_loop_cb(lambda: sync_client.handle_response(bytes))
+
+    sync_server = PySyncServer()
+    sync_session = sync_server.new_session(handle_new_session)
+    sync_client = PySyncClient(handle_sync_client)
+    return sync_client
+
+
+sync_client = create_sync_client(default_loop_cb)
+
+
+table_mod = types.ModuleType("perspective.table")
+table_mod.Table = sync_client.table
+sys.modules.setdefault("perspective.table", table_mod)
+Table = sync_client.table
+
+
+def PerspectiveManager():
+    return create_sync_client(default_loop_cb)
+
+
+# def async_client():
+#     return create_async_client(default_loop_cb)
+
+
+def set_threadpool_size(num_cpus):
+    pass
+
 
 # import asyncio
 # import threading
@@ -77,8 +109,8 @@ def create_sync_client(cb = default_loop_cb):
 #     def __getattribute__(self, name: str):
 #         table = object.__getattribute__(self, '_table')
 #         attr = object.__getattribute__(table, name)
-        
-        
+
+
 #         # if asyncio.iscoroutinefunction(attr):
 #         def sync_wrapper(*args, **kwargs):
 #             async def a():
@@ -92,10 +124,10 @@ def create_sync_client(cb = default_loop_cb):
 # class SyncView:
 #     def __init__(self, view):
 #         self._view = view
-    
+
 #     def to_dict(self, *args, **kwargs):
 #         return self.to_columns(*args, **kwargs)
-    
+
 #     def to_records(self, *args, **kwargs):
 #         return self.to_json(*args, **kwargs)
 
@@ -108,17 +140,3 @@ def create_sync_client(cb = default_loop_cb):
 #                 return res
 #             return run_blocking(inner)
 #         return sync_wrapper
-    
-table_mod = types.ModuleType("perspective.table")
-table_mod.Table =  sync_client.table
-sys.modules.setdefault("perspective.table", table_mod)
-
-Table = sync_client.table
-PerspectiveManager = lambda: _create_sync_client(default_loop_cb)
-
-async_client = lambda: create_async_client(default_loop_cb)
-
-def set_threadpool_size(num_cpus):
-    pass
-
-

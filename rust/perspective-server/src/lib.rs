@@ -7,97 +7,163 @@
 // ┃ Copyright (c) 2017, the Perspective Authors.                              ┃
 // ┃ ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ┃
 // ┃ This file is part of the Perspective library, distributed under the terms ┃
-// ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
+// ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE━2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+//! This crate contains the server/engine components of the
+//! [Perspective](https://perspective.finos.org) data visualization suite. It is
+//! meant to be used in conjunction with the other crates of this project,
+//! e.g. `perspective-client` to create client connections to a server.
+//!
+//! The [`perspective`] crate provides a convenient frontend for Rust
+//! developers, including both `perspective-client` and `perspective-server` as
+//! well as other convenient integration helpers.
+//!
+//! # Architecture
+//!
+//! The basic dataflow of a Perspective applications looks something like this:
+//!                                                                             
+//! ```text
+//!                      : Network or sync boundary
+//!                      :
+//!  Client 1            :   Session 1                      Server
+//! ┏━━━━━━━━━━━━━━━━━━┓ :  ┏━━━━━━━━━━━━━━━━━━┓           ┏━━━━━━━━━━━━━━━━━━┓
+//! ┃ receive_response ┃<━━━┃ on_send_response ┃<━┳━━━━━━━━┃ on_send_response ┃
+//! ┃ on_send_request  ┃━┳━>┃ handle_request   ┃━━━━━┳━━━━>┃ handle_request   ┃
+//! ┗━━━━━━━━━━━━━━━━━━┛ ┗━>┃ poll             ┃━━━━━━━━┳━>┃ poll             ┃
+//!                      :  ┃ session_id       ┃  ┃  ┃  ┃  ┃ generate_id      ┃
+//!                      :  ┗━━━━━━━━━━━━━━━━━━┛  ┃  ┃  ┃  ┃ cleanup_id       ┃
+//!                      :                        ┃  ┃  ┃  ┗━━━━━━━━━━━━━━━━━━┛
+//!  Client 2            :   Session 2            ┃  ┃  ┃
+//! ┏━━━━━━━━━━━━━━━━━━┓ :  ┏━━━━━━━━━━━━━━━━━━┓  ┃  ┃  ┃  
+//! ┃ receive_response ┃<━━━┃ on_send_response ┃<━┛  ┃  ┃                         
+//! ┃ on_send_request  ┃━┳━>┃ handle_request   ┃━━━━━┛  ┃                                        
+//! ┗━━━━━━━━━━━━━━━━━━┛ ┗━>┃ poll             ┃━━━━━━━━┛
+//!                      :  ┃ session_id       ┃                                                 
+//!                      :  ┗━━━━━━━━━━━━━━━━━━┛
+//! ```
+//!
+//! # Feature Flags
+//!
+//! The following feature flags are available to enable in your `Cargo.toml`:
+//!
+//! - `external-cpp` Set this flag to configure this crate's compile process to
+//!   look for Perspective C++ source code in the environment rather than
+//!   locally, e.g. for when you build this crate in-place in the Perspective
+//!   repo source tree.
 
 #![feature(lazy_cell)]
 
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::Arc;
 
+use async_lock::RwLock;
 use cxx::UniquePtr;
 
 mod ffi;
 
-#[derive(Clone)]
-pub struct Server {
+type SessionCallback<E = ()> = Arc<dyn Fn(&[u8]) -> Result<(), E> + 'static + Sync + Send>;
+
+/// An instance of a Perspective server. Each [`Server`] instance is separate,
+/// and does not share [`perspective_client::Table`] (or other) data with other
+/// [`Server`]s.
+pub struct Server<E = ()> {
     server: Arc<UniquePtr<ffi::ProtoApiServer>>,
+    callbacks: Arc<RwLock<HashMap<u32, SessionCallback<E>>>>,
 }
 
-pub type SessionCallback = Arc<dyn Fn(u32, &Vec<u8>) + 'static + Sync + Send>;
+/// This needs a manual implementation because `derive` adds the bounds
+/// `E: Clone`, which is unnecessary.
+impl<E> Clone for Server<E> {
+    fn clone(&self) -> Self {
+        Self {
+            server: self.server.clone(),
+            callbacks: self.callbacks.clone(),
+        }
+    }
+}
 
-impl Default for Server {
+impl<E> Default for Server<E> {
     fn default() -> Self {
         let server = Arc::new(ffi::new_proto_server());
-        Self { server }
+        let callbacks = Arc::default();
+        Self { server, callbacks }
     }
 }
 
-static CALLBACKS: LazyLock<RwLock<HashMap<u32, SessionCallback>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
-
-#[no_mangle]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub extern "C" fn psp_global_session_handler(client_id: u32, data: *const u8, length: u32) {
-    let data = unsafe { std::slice::from_raw_parts(data, length as usize) };
-    let data_vec = data.to_owned();
-    // Print process and thread id
-    let thread_id = std::thread::current().id();
-    let process_id = std::process::id();
-    tracing::info!(
-        "Global session handler called for client_id: {}, thread_id: {:?}, process_id: {}",
-        client_id,
-        thread_id,
-        process_id
-    );
-
-    let cb = CALLBACKS
-        .read()
-        .expect("lock poisoned")
-        .get(&client_id)
-        .cloned();
-
-    if let Some(cb) = cb {
-        cb(client_id, &data_vec);
-    } else {
-        tracing::info!("No callback found for client_id: {}", client_id);
-    }
-}
-
-impl Server {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn new_session(&self) -> u32 {
-        ffi::new_session(&self.server)
-    }
-
-    pub fn register_session_cb(&mut self, cb: SessionCallback) -> u32 {
-        let client_id = ffi::new_session(&self.server);
-        tracing::info!("Registering session callback for client_id: {}", client_id);
-        CALLBACKS
+impl<E> Server<E> {
+    /// Create a new [`Session`] for this [`Server`], suitable for exactly one
+    /// [`Client`] (not necessarily in this process).
+    ///
+    /// # Arguments
+    ///
+    /// - `send_response` A function invoked by the [`Server`] when a response
+    ///   message needs to be sent to the [`Client`] (via its respective
+    ///   [`Session`]). The response itself should be passed to
+    ///   [`Client::handle_response`], which may-or-may-not be in the same
+    ///   process or host language.
+    pub async fn new_session<F>(&self, send_response: F) -> Session<E>
+    where
+        F: Fn(&[u8]) -> Result<(), E> + 'static + Sync + Send,
+    {
+        let id = ffi::new_session(&self.server);
+        let server = self.clone();
+        self.callbacks
             .write()
-            .expect("lock poisoned")
-            .insert(client_id, cb);
-        client_id
+            .await
+            .insert(id, Arc::new(send_response));
+        Session { id, server }
     }
 
-    pub fn unregister_session_cb(&mut self, client_id: u32) {
-        CALLBACKS.write().expect("lock poisoned").remove(&client_id);
+    async fn handle_request(&self, client_id: u32, val: &[u8]) -> Result<(), E> {
+        for response in ffi::handle_request(&self.server, client_id, val).0 {
+            if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
+                f(&response.resp)?
+            }
+        }
+
+        Ok(())
     }
 
-    pub fn handle_request(
-        &self,
-        client_id: u32,
-        val: &Vec<u8>,
-    ) -> impl Iterator<Item = (u32, Vec<u8>)> {
-        let response_batch = ffi::handle_request(&self.server, client_id, val);
-        response_batch.0.into_iter().map(|x| (x.client_id, x.resp))
+    async fn poll(&self) -> Result<(), E> {
+        for response in ffi::poll(&self.server).0 {
+            if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
+                f(&response.resp)?
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// The server-side representation of a connection to a [`Client`]. For each
+/// [`Client`] that wants to connect to a [`Server`], a dedicated [`Session`]
+/// must be created. The [`Session`] handles routing messages emitted by the
+/// [`Server`], as well as owning any resources the [`Client`] may request.
+pub struct Session<E> {
+    id: u32,
+    server: Server<E>,
+}
+
+impl<E> Session<E> {
+    /// Handle an incoming request from the [`Client`]. Calling
+    /// [`Session::handle_request`] will result in the `send_response` parameter
+    /// which was used to construct this [`Session`] to fire one or more times.
+    ///
+    /// # Arguments
+    ///
+    /// - `request` An incoming request message, generated from a
+    ///   [`Client::new`]'s `send_request` handler (which may-or-may-not be
+    ///   local).
+    pub async fn handle_request(&self, request: &[u8]) -> Result<(), E> {
+        self.server.handle_request(self.id, request).await
     }
 
-    pub fn poll(&self) -> impl Iterator<Item = (u32, Vec<u8>)> {
-        let response_batch = ffi::poll(&self.server);
-        response_batch.0.into_iter().map(|x| (x.client_id, x.resp))
+    /// Flush any pending messages which may have resulted from previous
+    /// [`Session::handle_request`] calls. Calling [`Session::poll`] may result
+    /// in the `send_response` parameter which was used to construct this
+    /// [`Session`] to fire.
+    pub async fn poll(&self) -> Result<(), E> {
+        self.server.poll().await
     }
 }
