@@ -160,9 +160,8 @@ exports.WorkerPlugin = function WorkerPlugin(options = {}) {
                         return make_host(mains, workers);
                     }
 
-                    const code_promise = get_worker_code();
                     export const initialize = async function () {
-                        const code = await code_promise;
+                        const code = await  get_worker_code();
                         if (window.location.protocol.startsWith("file") && !window.isElectron) {
                             console.warn("file:// protocol does not support Web Workers");
                             return run_single_threaded(code);

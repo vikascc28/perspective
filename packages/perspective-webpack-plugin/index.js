@@ -54,7 +54,7 @@ class PerspectiveWebpackPlugin {
         fallbackOptions.fs = false;
 
         rules.push({
-            test: /perspective\.worker\.js$/,
+            test: /perspective-server\.js$/,
             type: "javascript/auto",
             include: this.options.workerPath,
             use: {
@@ -86,21 +86,22 @@ class PerspectiveWebpackPlugin {
 
         const plugin_replace = new webpack.NormalModuleReplacementPlugin(
             /@finos\/perspective$/,
-            "@finos/perspective/dist/esm/perspective.js"
+            "@finos/perspective/dist/cdn/perspective.js"
         );
         plugin_replace.apply(compiler);
 
         const plugin_replace2 = new webpack.NormalModuleReplacementPlugin(
             /@finos\/perspective\-viewer$/,
-            "@finos/perspective-viewer/dist/esm/perspective-viewer.js"
+            "@finos/perspective-viewer/dist/cdn/perspective-viewer.js"
         );
         plugin_replace2.apply(compiler);
 
         const plugin_replace3 = new webpack.NormalModuleReplacementPlugin(
             /@finos\/perspective\-workspace$/,
-            "@finos/perspective-workspace/dist/esm/perspective-workspace.js"
+            "@finos/perspective-workspace/dist/cdn/perspective-workspace.js"
         );
         plugin_replace3.apply(compiler);
+        // moduleOptions.parser = { javascript: { importMeta: false } };
 
         moduleOptions.rules = (moduleOptions.rules || []).concat(rules);
     }

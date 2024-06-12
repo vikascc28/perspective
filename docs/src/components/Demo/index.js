@@ -23,7 +23,6 @@ import { random_row } from "./data.js";
 import { LAYOUTS } from "./layouts.js";
 import styles from "./styles.module.css";
 
-const WORKER = perspective.shared_worker();
 const IS_ROTATE = false;
 
 let TABLE,
@@ -181,7 +180,8 @@ async function start_streaming(viewer) {
         data.push(random_row());
     }
 
-    var tbl = WORKER.table(data, { index: "id" });
+    const worker = await WORKER;
+    var tbl = worker.table(data, { index: "id" });
     setTimeout(async function () {
         let table = await tbl;
         update(table, viewer);
