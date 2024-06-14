@@ -15,13 +15,14 @@ const os = require("os");
 const path = require("path");
 
 const stdio = "inherit";
+const rust_env = process.env.PSP_DEBUG ? "" : "--release";
 const env = process.env.PSP_DEBUG ? "debug" : "release";
 const cwd = path.join(process.cwd(), "dist", env);
 
 delete process.env.NODE;
 
 function bootstrap(file) {
-    execSync(`cargo run -p perspective-bootstrap -- --${env} ${file}`, {
+    execSync(`cargo run -p perspective-bootstrap -- ${rust_env} ${file}`, {
         cwd: path.join(process.cwd(), "..", "..", "rust", "perspective-js"),
         stdio,
     });

@@ -19,92 +19,6 @@ use pyo3_asyncio::tokio::future_into_py;
 use super::python::*;
 use crate::server::PyAsyncServer;
 
-fn get_arrow_table_cls() -> Option<Py<PyAny>> {
-    let res: PyResult<Py<PyAny>> = Python::with_gil(|py| {
-        let pyarrow = PyModule::import(py, "pyarrow")?;
-        Ok(pyarrow.getattr("Table")?.to_object(py))
-    });
-
-    match res {
-        Ok(x) => Some(x),
-        Err(_) => {
-            tracing::warn!("Failed to import pyarrow.Table");
-            None
-        },
-    }
-}
-
-fn is_arrow_table(py: Python, table: &PyAny) -> PyResult<bool> {
-    if let Some(table_class) = get_arrow_table_cls() {
-        table.is_instance(table_class.as_ref(py))
-    } else {
-        Ok(false)
-    }
-}
-
-fn to_arrow_bytes(py: Python, table: &PyAny) -> PyResult<Py<PyBytes>> {
-    let pyarrow = PyModule::import(py, "pyarrow")?;
-    let table_class = get_arrow_table_cls()
-        .ok_or_else(|| PyValueError::new_err("Failed to import pyarrow.Table"))?;
-
-    if !table.is_instance(table_class.as_ref(py))? {
-        return Err(PyValueError::new_err("Input is not a pyarrow.Table"));
-    }
-
-    let sink = pyarrow.call_method0("BufferOutputStream")?;
-
-    {
-        let writer =
-            pyarrow.call_method1("RecordBatchFileWriter", (sink, table.getattr("schema")?))?;
-
-        writer.call_method1("write_table", (table,))?;
-        writer.call_method0("close")?;
-    }
-
-    // Get the value from the sink and convert it to Python bytes
-    let value = sink.call_method0("getvalue")?;
-    let pybytes = value.call_method0("to_pybytes")?.downcast::<PyBytes>()?;
-
-    Ok(pybytes.into())
-}
-
-fn get_pandas_df_cls() -> Option<Py<PyAny>> {
-    let res: PyResult<Py<PyAny>> = Python::with_gil(|py| {
-        let pandas = PyModule::import(py, "pandas")?;
-        Ok(pandas.getattr("DataFrame")?.to_object(py))
-    });
-    match res {
-        Ok(x) => Some(x),
-        Err(_) => {
-            tracing::warn!("Failed to import pandas.DataFrame");
-            None
-        },
-    }
-}
-
-fn is_pandas_df(py: Python, df: &PyAny) -> PyResult<bool> {
-    if let Some(df_class) = get_pandas_df_cls() {
-        df.is_instance(df_class.as_ref(py))
-    } else {
-        Ok(false)
-    }
-}
-
-fn pandas_to_arrow_bytes(py: Python, df: &PyAny) -> PyResult<Py<PyBytes>> {
-    let pyarrow = PyModule::import(py, "pyarrow")?;
-    let df_class = get_pandas_df_cls()
-        .ok_or_else(|| PyValueError::new_err("Failed to import pandas.DataFrame"))?;
-
-    if !df.is_instance(df_class.as_ref(py))? {
-        return Err(PyValueError::new_err("Input is not a pandas.DataFrame"));
-    }
-
-    let table = pyarrow
-        .getattr("Table")?
-        .call_method1("from_pandas", (df,))?;
-    to_arrow_bytes(py, table)
-}
-
 #[pyclass]
 pub struct PyAsyncClient(PyClient);
 
@@ -121,15 +35,8 @@ impl PyAsyncClient {
         name: Option<Py<PyString>>,
     ) -> PyResult<&'a PyAny> {
         let client = self.0.clone();
-        let input_data = if is_arrow_table(py, input.as_ref(py))? {
-            to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
-        } else if is_pandas_df(py, input.as_ref(py))? {
-            pandas_to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
-        } else {
-            input
-        };
         future_into_py(py, async move {
-            let table = client.table(input_data, limit, index, name).await?;
+            let table = client.table(input, limit, index, name).await?;
             Ok(PyAsyncTable(table))
         })
     }
@@ -204,16 +111,10 @@ impl PyAsyncTable {
         port_id: Option<u32>,
     ) -> PyResult<&'a PyAny> {
         let table = self.0.clone();
-        let input_data = if is_arrow_table(py, input.as_ref(py))? {
-            to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
-        } else if is_pandas_df(py, input.as_ref(py))? {
-            pandas_to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
-        } else {
-            input
-        };
-        future_into_py(py, async move {
-            table.update(input_data, format, port_id).await
-        })
+        future_into_py(
+            py,
+            async move { table.update(input, format, port_id).await },
+        )
     }
 
     #[doc = include_str!("../../docs/table/delete.md")]

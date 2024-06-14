@@ -106,7 +106,7 @@ pub struct Table {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SystemInfo {
-    pub heap_size: u64,
+    pub heap_size: f64,
 }
 
 impl From<proto::ServerSystemInfoResp> for SystemInfo {

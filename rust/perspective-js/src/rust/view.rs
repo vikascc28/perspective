@@ -219,19 +219,19 @@ impl JsView {
 
     #[doc = include_str!("../../docs/view/collapse.md")]
     #[wasm_bindgen]
-    pub async fn collapse(&self, row_index: i32) -> ApiResult<i32> {
-        Ok(self.0.collapse(row_index).await? as i32)
+    pub async fn collapse(&self, row_index: u32) -> ApiResult<u32> {
+        Ok(self.0.collapse(row_index).await?)
     }
 
     #[doc = include_str!("../../docs/view/expand.md")]
     #[wasm_bindgen]
-    pub async fn expand(&self, row_index: i32) -> ApiResult<i32> {
-        Ok(self.0.expand(row_index).await? as i32)
+    pub async fn expand(&self, row_index: u32) -> ApiResult<u32> {
+        Ok(self.0.expand(row_index).await?)
     }
 
     #[doc = include_str!("../../docs/view/set_depth.md")]
     #[wasm_bindgen]
-    pub async fn set_depth(&self, depth: i32) -> ApiResult<()> {
+    pub async fn set_depth(&self, depth: u32) -> ApiResult<()> {
         Ok(self.0.set_depth(depth).await?)
     }
 }

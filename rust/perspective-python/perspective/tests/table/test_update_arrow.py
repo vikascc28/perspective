@@ -18,7 +18,7 @@ import pandas as pd
 import numpy as np
 from datetime import date, datetime
 from pytest import mark
-from perspective.table import Table
+from perspective import Table
 
 SOURCE_STREAM_ARROW = os.path.join(
     os.path.dirname(__file__), "arrow", "int_float_str.arrow"

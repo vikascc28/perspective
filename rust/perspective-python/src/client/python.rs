@@ -94,21 +94,6 @@ create_exception!(
     pyo3::exceptions::PyException
 );
 
-#[pyfunction]
-fn default_serializer(obj: &Bound<PyAny>) -> PyResult<String> {
-    if let Ok(dt) = obj.downcast::<pyo3::types::PyDateTime>() {
-        Ok(dt.str()?.to_string())
-    } else if let Ok(d) = obj.downcast::<pyo3::types::PyDate>() {
-        Ok(d.str()?.to_string())
-    } else if let Ok(d) = obj.downcast::<pyo3::types::PyTime>() {
-        Ok(d.str()?.to_string())
-    } else {
-        Err(pyo3::exceptions::PyTypeError::new_err(
-            "Object type not serializable",
-        ))
-    }
-}
-
 #[extend::ext]
 impl UpdateData {
     fn from_py_partial(py: Python<'_>, input: &Py<PyAny>) -> Result<Option<UpdateData>, PyErr> {
@@ -118,9 +103,7 @@ impl UpdateData {
             Ok(Some(UpdateData::Csv(pystring.extract::<String>()?)))
         } else if let Ok(pylist) = input.downcast_bound::<PyList>(py) {
             let json_module = PyModule::import_bound(py, "json")?;
-            let kwargs = PyDict::new_bound(py);
-            kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
-            let string = json_module.call_method("dumps", (pylist,), Some(&kwargs))?;
+            let string = json_module.call_method("dumps", (pylist,), None)?;
             Ok(Some(UpdateData::JsonRows(string.extract::<String>()?)))
         } else if let Ok(pydict) = input.downcast_bound::<PyDict>(py) {
             if pydict.keys().is_empty() {
@@ -134,9 +117,7 @@ impl UpdateData {
 
             if first_item.downcast::<PyList>().is_ok() {
                 let json_module = PyModule::import_bound(py, "json")?;
-                let kwargs = PyDict::new_bound(py);
-                kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
-                let string = json_module.call_method("dumps", (pydict,), Some(&kwargs))?;
+                let string = json_module.call_method("dumps", (pydict,), None)?;
                 Ok(Some(UpdateData::JsonColumns(string.extract::<String>()?)))
             } else {
                 Ok(None)
@@ -165,9 +146,7 @@ impl TableData {
             Ok(TableData::Update(update))
         } else if let Ok(pylist) = input.downcast_bound::<PyList>(py) {
             let json_module = PyModule::import_bound(py, "json")?;
-            let kwargs = PyDict::new_bound(py);
-            kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
-            let string = json_module.call_method("dumps", (pylist,), Some(&kwargs))?;
+            let string = json_module.call_method("dumps", (pylist,), None)?;
             Ok(TableData::Update(UpdateData::JsonRows(
                 string.extract::<String>()?,
             )))
@@ -178,9 +157,7 @@ impl TableData {
                 .ok_or_else(|| PyValueError::new_err("Bad Input"))?;
             if first_item.downcast::<PyList>().is_ok() {
                 let json_module = PyModule::import_bound(py, "json")?;
-                let kwargs = PyDict::new_bound(py);
-                kwargs.set_item("default", wrap_pyfunction_bound!(default_serializer, py)?)?;
-                let string = json_module.call_method("dumps", (pydict,), Some(&kwargs))?;
+                let string = json_module.call_method("dumps", (pydict,), None)?;
                 Ok(TableData::Update(UpdateData::JsonColumns(
                     string.extract::<String>()?,
                 )))
@@ -205,6 +182,92 @@ impl TableData {
 }
 
 const PSP_CALLBACK_ID: &str = "__PSP_CALLBACK_ID__";
+
+fn get_arrow_table_cls() -> Option<Py<PyAny>> {
+    let res: PyResult<Py<PyAny>> = Python::with_gil(|py| {
+        let pyarrow = PyModule::import(py, "pyarrow")?;
+        Ok(pyarrow.getattr("Table")?.to_object(py))
+    });
+
+    match res {
+        Ok(x) => Some(x),
+        Err(_) => {
+            tracing::warn!("Failed to import pyarrow.Table");
+            None
+        },
+    }
+}
+
+fn is_arrow_table(py: Python, table: &PyAny) -> PyResult<bool> {
+    if let Some(table_class) = get_arrow_table_cls() {
+        table.is_instance(table_class.as_ref(py))
+    } else {
+        Ok(false)
+    }
+}
+
+fn to_arrow_bytes(py: Python, table: &PyAny) -> PyResult<Py<PyBytes>> {
+    let pyarrow = PyModule::import(py, "pyarrow")?;
+    let table_class = get_arrow_table_cls()
+        .ok_or_else(|| PyValueError::new_err("Failed to import pyarrow.Table"))?;
+
+    if !table.is_instance(table_class.as_ref(py))? {
+        return Err(PyValueError::new_err("Input is not a pyarrow.Table"));
+    }
+
+    let sink = pyarrow.call_method0("BufferOutputStream")?;
+
+    {
+        let writer =
+            pyarrow.call_method1("RecordBatchFileWriter", (sink, table.getattr("schema")?))?;
+
+        writer.call_method1("write_table", (table,))?;
+        writer.call_method0("close")?;
+    }
+
+    // Get the value from the sink and convert it to Python bytes
+    let value = sink.call_method0("getvalue")?;
+    let pybytes = value.call_method0("to_pybytes")?.downcast::<PyBytes>()?;
+
+    Ok(pybytes.into())
+}
+
+fn get_pandas_df_cls() -> Option<Py<PyAny>> {
+    let res: PyResult<Py<PyAny>> = Python::with_gil(|py| {
+        let pandas = PyModule::import(py, "pandas")?;
+        Ok(pandas.getattr("DataFrame")?.to_object(py))
+    });
+    match res {
+        Ok(x) => Some(x),
+        Err(_) => {
+            tracing::warn!("Failed to import pandas.DataFrame");
+            None
+        },
+    }
+}
+
+fn is_pandas_df(py: Python, df: &PyAny) -> PyResult<bool> {
+    if let Some(df_class) = get_pandas_df_cls() {
+        df.is_instance(df_class.as_ref(py))
+    } else {
+        Ok(false)
+    }
+}
+
+fn pandas_to_arrow_bytes(py: Python, df: &PyAny) -> PyResult<Py<PyBytes>> {
+    let pyarrow = PyModule::import(py, "pyarrow")?;
+    let df_class = get_pandas_df_cls()
+        .ok_or_else(|| PyValueError::new_err("Failed to import pandas.DataFrame"))?;
+
+    if !df.is_instance(df_class.as_ref(py))? {
+        return Err(PyValueError::new_err("Input is not a pandas.DataFrame"));
+    }
+
+    let table = pyarrow
+        .getattr("Table")?
+        .call_method1("from_pandas", (df,))?;
+    to_arrow_bytes(py, table)
+}
 
 impl PyClient {
     pub fn new(handle_request: Py<PyFunction>) -> Self {
@@ -269,7 +332,15 @@ impl PyClient {
                 },
             };
 
-            let table_data = TableData::from_py(py, input)?;
+            let input_data = if is_arrow_table(py, input.as_ref(py))? {
+                to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
+            } else if is_pandas_df(py, input.as_ref(py))? {
+                pandas_to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
+            } else {
+                input
+            };
+
+            let table_data = TableData::from_py(py, input_data)?;
             let table = client.table(table_data, options);
             Ok::<_, PyErr>(table)
         })?;
@@ -396,8 +467,18 @@ impl PyTable {
         format: Option<String>,
         port_id: Option<u32>,
     ) -> PyResult<()> {
+        let input_data: Py<PyAny> = Python::with_gil(|py| {
+            let data = if is_arrow_table(py, input.as_ref(py))? {
+                to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
+            } else if is_pandas_df(py, input.as_ref(py))? {
+                pandas_to_arrow_bytes(py, input.as_ref(py))?.to_object(py)
+            } else {
+                input
+            };
+            Ok(data) as PyResult<Py<PyAny>>
+        })?;
         let table = self.table.lock().await;
-        let table_data = Python::with_gil(|py| UpdateData::from_py(py, &input))?;
+        let table_data = Python::with_gil(|py| UpdateData::from_py(py, &input_data))?;
         let options = UpdateOptions { format, port_id };
         table.update(table_data, options).await.into_pyerr()?;
         Ok(())
@@ -460,6 +541,14 @@ impl PyView {
     pub async fn dimensions(&self) -> PyResult<Py<PyAny>> {
         let dim = self.view.lock().await.dimensions().await.into_pyerr()?;
         Ok(Python::with_gil(|py| pythonize::pythonize(py, &dim))?)
+    }
+
+    pub async fn expand(&self, index: u32) -> PyResult<u32> {
+        self.view.lock().await.expand(index).await.into_pyerr()
+    }
+
+    pub async fn collapse(&self, index: u32) -> PyResult<u32> {
+        self.view.lock().await.collapse(index).await.into_pyerr()
     }
 
     pub async fn expression_schema(&self) -> PyResult<HashMap<String, String>> {

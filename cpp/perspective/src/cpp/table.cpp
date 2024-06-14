@@ -17,6 +17,7 @@
 #include "perspective/raw_types.h"
 #include "perspective/schema.h"
 #include "rapidjson/document.h"
+#include <chrono>
 #include <ctime>
 #include <memory>
 #include <optional>
@@ -452,7 +453,12 @@ rapidjson_type_to_dtype(const rapidjson::Value& value) {
                                     << "-" << tm.tm_mday << " " << tm.tm_hour
                                     << ":" << tm.tm_min << ":" << tm.tm_sec
                 );
-                LOG_DEBUG("TP: " << tp.time_since_epoch().count() << '\n');
+                auto tpm =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        tp.time_since_epoch()
+                    )
+                        .count();
+                LOG_DEBUG("TP: " << tpm << '\n');
 
                 if (tm.tm_hour == 0 && tm.tm_min == 0 && tm.tm_sec == 0) {
                     return t_dtype::DTYPE_DATE;
@@ -516,9 +522,7 @@ PROMOTE_IMPL(DTYPE_INT32, DTYPE_INT64, DTYPE_INT64)
 template <typename A>
 static A
 json_into(const rapidjson::Value& value) {
-    if constexpr (std::is_same_v<A, std::int32_t>
-                  || std::is_same_v<A, std::int64_t>
-                  || std::is_same_v<A, double>) {
+    if constexpr (std::is_same_v<A, std::int32_t> || std::is_same_v<A, std::int64_t> || std::is_same_v<A, double>) {
         if (value.IsInt()) {
             return value.GetInt();
         }
@@ -536,8 +540,7 @@ json_into(const rapidjson::Value& value) {
                 return std::atoi(value.GetString());
             } else if constexpr (std::is_same_v<A, std::int64_t>) {
                 return std::atoll(value.GetString());
-            } else if constexpr (std::is_same_v<A, double>
-                                 || std::is_same_v<A, float>) {
+            } else if constexpr (std::is_same_v<A, double> || std::is_same_v<A, float>) {
                 return std::atof(value.GetString());
             } else {
                 static_assert(!std::is_same_v<A, A>, "No coercion for type");
@@ -754,11 +757,9 @@ fill_column_json(
         case t_dtype::DTYPE_BOOL: {
             if (value.IsBool()) [[likely]] {
                 col->set_nth<bool>(i, value.GetBool());
-            } else if (value.IsString()
-                       && istrequals(value.GetString(), "true")) {
+            } else if (value.IsString() && istrequals(value.GetString(), "true")) {
                 col->set_nth<bool>(i, true);
-            } else if (value.IsString()
-                       && istrequals(value.GetString(), "false")) {
+            } else if (value.IsString() && istrequals(value.GetString(), "false")) {
                 col->set_nth<bool>(i, false);
             } else if (value.IsInt()) {
                 col->set_nth<bool>(i, value.GetInt() != 0);
@@ -1245,8 +1246,8 @@ Table::from_rows(
     std::vector<std::string> column_names;
     std::vector<t_dtype> data_types;
     bool is_implicit = true;
-    std::unordered_set<std::string> columns_known_type;
-    std::unordered_set<std::string> columns_seen;
+    std::set<std::string> columns_known_type;
+    std::set<std::string> columns_seen;
 
     [&]() {
         for (const auto& row : document.GetArray()) {
@@ -1402,9 +1403,16 @@ Table::update_arrow(const std::string_view& data, std::uint32_t port_id) {
     data_table.init();
     auto row_count = arrow_loader.row_count();
     data_table.extend(row_count);
-    // TODO: Was this limit on purpose? Why not use table->get_limit()?
+    auto input_schema = this->get_schema();
+
+    if (m_index.empty()) {
+        input_schema.add_column("__INDEX__", DTYPE_INT32);
+    } else {
+        input_schema.add_column("__INDEX__", input_schema.get_dtype(m_index));
+    }
+
     arrow_loader.fill_table(
-        data_table, this->get_schema(), m_index, m_offset, m_limit, true
+        data_table, input_schema, m_index, m_offset, m_limit, true
     );
 
     process_op_column(data_table, t_op::OP_INSERT);

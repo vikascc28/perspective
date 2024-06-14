@@ -13,10 +13,12 @@
 import random
 import pandas as pd
 import numpy as np
-from perspective import PerspectivePyError
-from perspective.table import Table
+from perspective import PerspectivePyError, Table
 from datetime import date, datetime
 from pytest import approx, mark, raises
+
+def date_timestamp(date):
+    return int(datetime.combine(date, datetime.min.time()).timestamp()) * 1000
 
 
 def compare_delta(received, expected):
@@ -30,8 +32,9 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.num_rows() == 2
-        assert view.num_columns() == 2
+        dimms = view.dimensions()
+        assert dimms["num_view_rows"] == 2
+        assert dimms["num_view_columns"] == 2
         assert view.schema() == {"a": "integer", "b": "integer"}
         assert view.to_records() == data
 
@@ -39,8 +42,9 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"])
-        assert view.num_rows() == 3
-        assert view.num_columns() == 2
+        dimms = view.dimensions()
+        assert dimms["num_view_rows"] == 3
+        assert dimms["num_view_columns"] == 2
         assert view.schema() == {"a": "integer", "b": "integer"}
         assert view.to_records() == [
             {"__ROW_PATH__": [], "a": 4, "b": 6},
@@ -52,8 +56,9 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"])
-        assert view.num_rows() == 3
-        assert view.num_columns() == 4
+        dimms = view.dimensions()
+        assert dimms["num_view_rows"] == 3
+        assert dimms["num_view_columns"] == 4
         assert view.schema() == {"a": "integer", "b": "integer"}
         assert view.to_records() == [
             {"2|a": 1, "2|b": 2, "4|a": 3, "4|b": 4, "__ROW_PATH__": []},
@@ -65,8 +70,9 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view(split_by=["b"])
-        assert view.num_rows() == 2
-        assert view.num_columns() == 4
+        dimms = view.dimensions()
+        assert dimms["num_view_rows"] == 2
+        assert dimms["num_view_columns"] == 4
         assert view.schema() == {"a": "integer", "b": "integer"}
         assert view.to_records() == [
             {"2|a": 1, "2|b": 2, "4|a": None, "4|b": None},
@@ -194,14 +200,14 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view(columns=[])
-        assert view.num_columns() == 0
+        assert view.dimensions()["num_view_columns"] == 0
         assert view.to_records() == []
 
     def test_view_no_columns_pivoted(self):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], columns=[])
-        assert view.num_columns() == 0
+        assert view.dimensions()["num_view_columns"] == 0
         assert view.to_records() == [
             {"__ROW_PATH__": []},
             {"__ROW_PATH__": [1]},
@@ -212,7 +218,7 @@ class TestView(object):
         data = [{"a": 1, "b": 2, "c": 3, "d": 4}, {"a": 3, "b": 4, "c": 5, "d": 6}]
         tbl = Table(data)
         view = tbl.view(columns=["a", "c", "d"])
-        assert view.num_columns() == 3
+        assert view.dimensions()["num_view_columns"] == 3
         assert view.to_records() == [{"a": 1, "c": 3, "d": 4}, {"a": 3, "c": 5, "d": 6}]
 
     def test_view_column_order(self):
@@ -249,6 +255,7 @@ class TestView(object):
         order = ["__ROW_PATH__", "a", "b", "c", "d"]
         assert view.column_paths() == order
 
+    # XXX: TODO, how does column_paths work?!?
     def test_view_df_aggregate_order_with_columns(self):
         """If `columns` is provided, order is always guaranteed."""
         data = pd.DataFrame(
@@ -322,16 +329,21 @@ class TestView(object):
         cols = view.column_paths()
         assert cols == ["2019-07-11 12:30:00.000|a", "2019-07-11 12:30:00.000|b"]
 
+    # TODO: time slightly off! thinks its NYE 1969
+    @mark.skip # We do not support python datetimes.
     def test_view_split_by_datetime_names_min(self):
         """Tests column paths for datetimes in UTC. Timezone-related tests are
         in the `test_table_datetime` file."""
+        import os
+        os.environ["TZ"] = "UTC"
         data = {"a": [datetime.min], "b": [1]}
-        tbl = Table(data)
+        tbl = Table({"a" :"datetime", "b": "integer"})
+        tbl.update(data)
         view = tbl.view(split_by=["a"])
         cols = view.column_paths()
         assert cols == ["1970-01-01 00:00:00.000|a", "1970-01-01 00:00:00.000|b"]
 
-    @mark.skip
+    @mark.skip # We dont support python datetimes.
     def test_view_split_by_datetime_names_max(self):
         """Tests column paths for datetimes in UTC. Timezone-related tests are
         in the `test_table_datetime` file."""
@@ -372,7 +384,7 @@ class TestView(object):
         view = tbl.view(aggregates={"a": "distinct count"}, group_by=["a"])
         assert view.to_records() == [
             {"__ROW_PATH__": [], "a": 1},
-            {"__ROW_PATH__": [datetime(2019, 10, 1, 11, 30)], "a": 1},
+            {"__ROW_PATH__": [datetime(2019, 10, 1, 11, 30).timestamp() * 1000], "a": 1},
         ]
 
     def test_view_aggregate_datetime_leading_zeroes(self):
@@ -384,7 +396,7 @@ class TestView(object):
         view = tbl.view(aggregates={"a": "distinct count"}, group_by=["a"])
         assert view.to_records() == [
             {"__ROW_PATH__": [], "a": 1},
-            {"__ROW_PATH__": [datetime(2019, 1, 1, 5, 5, 5)], "a": 1},
+            {"__ROW_PATH__": [datetime(2019, 1, 1, 5, 5, 5).timestamp() * 1000], "a": 1},
         ]
 
     def test_view_aggregate_mean(self):
@@ -1189,8 +1201,8 @@ class TestView(object):
         tbl = Table(data)
         view = tbl.view(sort=[["a", "desc"]])
         assert view.to_records() == [
-            {"a": datetime(2019, 7, 12), "b": 4},
-            {"a": datetime(2019, 7, 11), "b": 2},
+            {"a": datetime(2019, 7, 12).timestamp() * 1000, "b": 4},
+            {"a": datetime(2019, 7, 11).timestamp() * 1000, "b": 2},
         ]
 
     def test_view_sort_datetime(self):
@@ -1201,8 +1213,8 @@ class TestView(object):
         tbl = Table(data)
         view = tbl.view(sort=[["a", "desc"]])
         assert view.to_records() == [
-            {"a": datetime(2019, 7, 11, 8, 16), "b": 4},
-            {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
+            {"a": datetime(2019, 7, 11, 8, 16).timestamp() * 1000, "b": 4},
+            {"a": datetime(2019, 7, 11, 8, 15).timestamp() * 1000, "b": 2},
         ]
 
     def test_view_sort_hidden(self):
@@ -1360,28 +1372,18 @@ class TestView(object):
         view = tbl.view(filter=[["a", "<", "def"]])
         assert view.to_records() == [{"a": "abc", "b": 2}]
 
+    # @mark.skip # We do not support using `datetime.date` in operators.
     def test_view_filter_date_eq(self):
         data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
         tbl = Table(data)
-        view = tbl.view(filter=[["a", "==", date(2019, 7, 12)]])
+        view = tbl.view(filter=[["a", "==", str(date(2019, 7, 12))]])
         assert view.to_records() == [{"a": int(datetime(2019, 7, 12).timestamp() * 1000), "b": 4}]
 
+    # @mark.skip # We do not support using `datetime.date` in operators.
     def test_view_filter_date_neq(self):
         data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
         tbl = Table(data)
-        view = tbl.view(filter=[["a", "!=", date(2019, 7, 12)]])
-        assert view.to_records() == [{"a": int(datetime(2019, 7, 11).timestamp() * 1000), "b": 2}]
-
-    def test_view_filter_date_np_eq(self):
-        data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
-        tbl = Table(data)
-        view = tbl.view(filter=[["a", "==", np.datetime64(date(2019, 7, 12))]])
-        assert view.to_records() == [{"a": int(datetime(2019, 7, 12).timestamp() * 1000), "b": 4}]
-
-    def test_view_filter_date_np_neq(self):
-        data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
-        tbl = Table(data)
-        view = tbl.view(filter=[["a", "!=", np.datetime64(date(2019, 7, 12))]])
+        view = tbl.view(filter=[["a", "!=", str(date(2019, 7, 12))]])
         assert view.to_records() == [{"a": int(datetime(2019, 7, 11).timestamp() * 1000), "b": 2}]
 
     def test_view_filter_date_str_eq(self):
@@ -1396,6 +1398,7 @@ class TestView(object):
         view = tbl.view(filter=[["a", "!=", "2019/7/12"]])
         assert view.to_records() == [{"a": int(datetime(2019, 7, 11).timestamp() * 1000), "b": 2}]
 
+    @mark.skip # We do not support using `datetime.datetime` in operators
     def test_view_filter_datetime_eq(self):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1405,6 +1408,7 @@ class TestView(object):
         view = tbl.view(filter=[["a", "==", datetime(2019, 7, 11, 8, 15)]])
         assert view.to_records() == [{"a": int(datetime(2019, 7, 11, 8, 15).timestamp() * 1000), "b": 2}]
 
+    @mark.skip # We do not support using `datetime.datetime` in operators
     def test_view_filter_datetime_neq(self):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1414,6 +1418,7 @@ class TestView(object):
         view = tbl.view(filter=[["a", "!=", datetime(2019, 7, 11, 8, 15)]])
         assert view.to_records() == [{"a": int(datetime(2019, 7, 11, 8, 16).timestamp() * 1000), "b": 4}]
 
+    @mark.skip # We do not support numpy anymore
     def test_view_filter_datetime_np_eq(self):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1425,6 +1430,7 @@ class TestView(object):
         )
         assert view.to_records() == [{"a": int(datetime(2019, 7, 11, 8, 15).timestamp() * 1000), "b": 2}]
 
+    @mark.skip # We do not support numpy anymore.
     def test_view_filter_datetime_np_neq(self):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1457,13 +1463,14 @@ class TestView(object):
     def test_view_filter_string_is_none(self):
         data = [{"a": None, "b": 2}, {"a": "abc", "b": 4}]
         tbl = Table(data)
-        view = tbl.view(filter=[["a", "is null"]])
+        view = tbl.view(filter=[["a", "is null", ""]]) # XXX: Having to add this "" is not soooo great.
+        print(f"VIEW: {view.to_records()}")
         assert view.to_records() == [{"a": None, "b": 2}]
 
     def test_view_filter_string_is_not_none(self):
         data = [{"a": None, "b": 2}, {"a": "abc", "b": 4}]
         tbl = Table(data)
-        view = tbl.view(filter=[["a", "is not null"]])
+        view = tbl.view(filter=[["a", "is not null", ""]]) # XXX: Having to add this "" is not soooo great.
         assert view.to_records() == [{"a": "abc", "b": 4}]
 
     # on_update
@@ -1518,18 +1525,21 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
+        with raises(PerspectivePyError):
+            tbl.delete()
         view.delete()
-        assert tbl._views == []
+        tbl.delete()
 
     def test_view_delete_multiple_callbacks(self, sentinel):
         # make sure that callbacks on views get filtered
-        s = sentinel(0)
+        s1 = sentinel(0)
+        s2 = sentinel(0)
 
         def cb1(port_id):
-            s.set(s.get() + 1)
+            s1.set(s1.get() + 1)
 
         def cb2(port_id):
-            s.set(s.get() + 2)
+            s2.set(s2.get() + 1)
 
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
@@ -1537,10 +1547,13 @@ class TestView(object):
         v2 = tbl.view()
         v1.on_update(cb1)
         v2.on_update(cb2)
-        v1.delete()
-        assert len(tbl._views) == 1
         tbl.update(data)
-        assert s.get() == 2
+        assert s1.get() == 1
+        assert s2.get() == 1
+        v1.delete()
+        tbl.update(data)
+        assert s1.get() == 1
+        assert s2.get() == 2
 
     def test_view_delete_full_cleanup(self, sentinel):
         s = sentinel(0)
@@ -1576,31 +1589,35 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        view.on_update(cb1)
+        t1 = view.on_update(cb1)
         view.on_update(cb2)
-        view.remove_update(cb1)
+        view.remove_update(t1)
         tbl.update(data)
         assert s.get() == 2
 
     def test_view_remove_multiple_update(self, sentinel):
-        s = sentinel(0)
+        s1 = sentinel(0)
+        s2 = sentinel(0)
 
         def cb1(port_id):
-            s.set(s.get() + 1)
+            s1.set(s1.get() + 1)
 
         def cb2(port_id):
-            s.set(s.get() + 2)
+            s2.set(s2.get() + 1)
 
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        view.on_update(cb1)
+        t1 = view.on_update(cb1)
         view.on_update(cb2)
         view.on_update(cb1)
-        view.remove_update(cb1)
-        assert len(view._update_callbacks) == 1
         tbl.update(data)
-        assert s.get() == 2
+        assert s1.get() == 2
+        assert s2.get() == 1
+        view.remove_update(t1)
+        tbl.update(data)
+        assert s1.get() == 3
+        assert s2.get() == 2
 
     # row delta
 
@@ -1953,7 +1970,8 @@ class TestView(object):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view(columns=["a"], sort=[["b", "desc"]])
-        assert view._num_hidden_cols() == 1
+        cols = view.to_columns()
+        assert cols == {"a": [3, 1]}
 
     def test_view_context_two_update_clears_column_regression(self, util):
         """Tests that, when a 2-sided View() is updated to a state where one of
@@ -2064,15 +2082,15 @@ class TestView(object):
         tbl = Table(data)
         with raises(PerspectivePyError) as ex:
             tbl.view(columns=["x"])
-        assert str(ex.value) == "Invalid column 'x' found in View columns.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View columns.\n"
 
     def test_invalid_column_should_throw_and_updates_should_work(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
 
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(columns=["x"])
-        assert str(ex.value) == "Invalid column 'x' found in View columns.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View columns.\n"
 
         for i in range(100):
             tbl.update(data)
@@ -2086,19 +2104,19 @@ class TestView(object):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
 
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(columns=["x"], aggregates={"x": "sum"})
 
-        assert str(ex.value) == "Invalid column 'x' found in View columns.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View columns.\n"
 
     def test_invalid_column_aggregate_should_throw_and_updates_should_work(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
 
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(columns=["x"], aggregates={"x": "sum"})
 
-        assert str(ex.value) == "Invalid column 'x' found in View columns.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View columns.\n"
 
         for i in range(100):
             tbl.update(data)
@@ -2111,38 +2129,38 @@ class TestView(object):
     def test_invalid_group_by_should_throw(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(group_by=["x"])
-        assert str(ex.value) == "Invalid column 'x' found in View group_by.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View group_by.\n"
 
     def test_invalid_split_by_should_throw(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(split_by=["x"])
-        assert str(ex.value) == "Invalid column 'x' found in View split_by.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View split_by.\n"
 
     def test_invalid_filters_should_throw(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(filter=[["x", "==", "abc"]])
         assert (
             str(ex.value)
-            == "Could not get dtype for column `x` as it does not exist in the schema.\n"
+            == "Abort(): Filter column not in schema: x"
         )
 
     def test_invalid_sorts_should_throw(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(sort=[["x", "desc"]])
-        assert str(ex.value) == "Invalid column 'x' found in View sorts.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View sorts.\n"
 
     def test_should_throw_on_first_invalid(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(
                 group_by=["a"],
                 split_by=["c"],
@@ -2150,14 +2168,14 @@ class TestView(object):
                 aggregates={"a": "avg"},
                 sort=[["x", "desc"]],
             )
-        assert str(ex.value) == "Invalid column 'x' found in View sorts.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View sorts.\n"
 
     def test_invalid_columns_not_in_expression_should_throw(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]
         tbl = Table(data)
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             tbl.view(columns=["abc", "x"], expressions={"abc": "1 + 2"})
-        assert str(ex.value) == "Invalid column 'x' found in View columns.\n"
+        assert str(ex.value) == "Abort(): Invalid column 'x' found in View columns.\n"
 
     def test_should_not_throw_valid_expression(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]

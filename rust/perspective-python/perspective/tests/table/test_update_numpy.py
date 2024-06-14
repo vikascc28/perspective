@@ -13,10 +13,11 @@
 import numpy as np
 from datetime import date, datetime
 from pytest import mark
-from perspective.table import Table
+from perspective import Table
 import pytest
 
 
+@mark.skip
 class TestUpdateNumpy(object):
     def test_update_np(self):
         tbl = Table({"a": [1, 2, 3, 4]})

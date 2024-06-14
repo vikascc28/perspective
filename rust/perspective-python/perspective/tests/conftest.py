@@ -10,7 +10,7 @@
 #  ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 #  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-from datetime import datetime
+from datetime import datetime, date
 
 import numpy as np
 import pandas as pd
@@ -248,3 +248,21 @@ def superstore(count=100):
         dat["Profit"] = round(random() * 1000, 2)
         data.append(dat)
     return pd.DataFrame(data)
+
+
+# Perspective used to support datetime.date and datetime.datetime
+# as Table() constructor arguments, but now we forward the parameters
+# directly to JSON.loads. So to make sure the tests dont need to be
+# so utterly transmogrified, we have this little hack :)
+import json
+old = json.JSONEncoder.default
+
+def new_encoder(self, obj):
+    if isinstance(obj, datetime):
+        return str(obj)
+    elif isinstance(obj, date):
+        return str(obj)
+    else:
+        return old(self, obj)
+
+json.JSONEncoder.default = new_encoder

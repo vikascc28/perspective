@@ -461,7 +461,11 @@ void
 ServerResources::delete_table(const t_id& id) {
     PSP_WRITE_LOCK(m_write_lock);
     if (m_tables.find(id) != m_tables.end()) {
-        m_tables.erase(id);
+        if (m_table_to_view.find(id) == m_table_to_view.end()) {
+            m_tables.erase(id);
+        } else {
+            PSP_COMPLAIN_AND_ABORT("Cannot delete table with views");
+        }
     }
 }
 

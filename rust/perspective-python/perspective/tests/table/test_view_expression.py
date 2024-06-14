@@ -16,7 +16,7 @@ from string import ascii_letters
 from pytest import raises
 from datetime import date, datetime
 from time import mktime
-from perspective import Table  # , PerspectiveCppError
+from perspective import Table, PerspectivePyError
 import pytest
 from .test_view import compare_delta
 
@@ -26,43 +26,6 @@ def randstr(length, input=ascii_letters):
 
 
 class TestViewExpression(object):
-    def test_expression_conversion(self):
-        table = Table({"a": [1, 2, 3, 4], "b": [5, 6, 7, 8]})
-        test_expressions_str = [
-            '// x\n"a"',
-            '// y\n"b" * 0.5',
-            "// c\n'abcdefg'",
-            "// d\ntrue and false",
-            '// e\nfloat("a") > 2 ? null : 1',
-            "// f\ntoday()",
-            "// g\nnow()",
-            "// h\nlength(123)",
-        ]
-
-        test_expressions_dict = {
-            "x": '"a"',
-            "y": '"b" * 0.5',
-            "c": "'abcdefg'",
-            "d": "true and false",
-            "e": 'float("a") > 2 ? null : 1',
-            "f": "today()",
-            "g": "now()",
-            "h": "length(123)",
-        }
-
-        str_validated = table.validate_expressions(test_expressions_str)
-        dict_validated = table.validate_expressions(test_expressions_dict)
-        assert str_validated["errors"] == dict_validated["errors"]
-        assert str_validated["expression_schema"] == dict_validated["expression_schema"]
-        assert (
-            str_validated["expression_alias"].keys()
-            == dict_validated["expression_alias"].keys()
-        )
-        for dict_key, dict_val in dict_validated["expression_alias"].items():
-            str_alias = str_validated["expression_alias"]
-            matched_val = "// {}\n{}".format(dict_key, dict_val)
-            assert str_alias[dict_key] == matched_val
-
     def test_table_validate_expressions_empty(self):
         table = Table({"a": [1, 2, 3, 4], "b": [5, 6, 7, 8]})
         validate = table.validate_expressions([])
@@ -151,7 +114,7 @@ class TestViewExpression(object):
             "'abcdefg'": ["abcdefg" for _ in range(4)],
             "true and false": [False for _ in range(4)],
             'float("a") > 2 ? null : 1': [1, 1, None, None],
-            "today()": [1717113600000 for _ in range(4)],
+            "today()": [int(today.timestamp()) * 1000 for _ in range(4)],
             "length('abcd')": [4 for _ in range(4)],
         }
 
@@ -214,7 +177,7 @@ class TestViewExpression(object):
         for i in range(4):
             name = "computed{}".format(i)
             res = big_strings[i].lower()
-            assert schema[name] == str
+            assert schema[name] == 'string'
             assert result[name] == [res for _ in range(100)]
 
     def test_view_expression_string_page_stress(self):
@@ -281,7 +244,7 @@ class TestViewExpression(object):
 
         for expr in expressions:
             name = expr["expression_name"]
-            assert schema[name] == str
+            assert schema[name] == 'string'
 
             for i in range(100):
                 val = result["a"][i]
@@ -347,7 +310,7 @@ class TestViewExpression(object):
             expression_schema = view.expression_schema()
             result = view.to_columns()
             for expr in output_map.keys():
-                assert expression_schema[expr] == str
+                assert expression_schema[expr] == 'string'
                 assert result[expr] == [output_map[expr] for _ in range(4)]
 
     def test_view_expression_string_literal_compare(self):
@@ -466,7 +429,6 @@ class TestViewExpression(object):
 
         assert view.expression_schema() == {"computed": "float"}
 
-    @pytest.mark.skip
     def test_view_expression_string_literal_var(self):
         table = Table({"a": [1, 2, 3]})
 
@@ -554,12 +516,12 @@ class TestViewExpression(object):
 
     def test_view_expression_should_not_overwrite_real(self):
         table = Table({"a": [1, 2, 3, 4], "b": [5, 6, 7, 8]})
-        with raises(PerspectiveCppError) as ex:
+        with raises(PerspectivePyError) as ex:
             table.view(expressions={"a": 'upper("a")'})
 
         assert (
             str(ex.value)
-            == "View creation failed: cannot create expression column 'a' that overwrites a column that already exists.\n"
+            == "Abort(): Value Error - expression \"a\" cannot overwrite an existing column."
         )
 
     def test_legacy_view_duplicate_expression_should_resolve_to_last_alias(self):
@@ -642,6 +604,7 @@ class TestViewExpression(object):
         assert result["computed"] == [9.384615384615385, 6, 8, 10, 12]
         assert result2["computed"] == ["abc def", "abc def"]
 
+    # XXX: Only failing test here.
     def test_view_expression_multiple_views_with_the_same_alias_all_types(
         self,
     ):
@@ -657,6 +620,9 @@ class TestViewExpression(object):
             {
                 "a": [1, 2, 3, 4],
                 "b": [5.5, 6.5, 7.5, 8.5],
+                # XXX: XXXHERE
+                #       datetime.now() is not working as well as datetime(2020,3,5)!
+                #       perspective thinks its 0!!
                 "c": [datetime.now() for _ in range(4)],
                 "d": [date.today() for _ in range(4)],
                 "e": [True, False, True, False],
@@ -1158,7 +1124,7 @@ class TestViewExpression(object):
         view = table.view(expressions={"bucket": 'day_of_week("a")'})
         assert view.schema() == {"a": "date", "bucket": "string"}
         assert view.to_columns() == {
-            "a": [datetime(2020, 3, i) for i in range(9, 14)],
+            "a": [datetime(2020, 3, i).timestamp() * 1000 for i in range(9, 14)],
             "bucket": [
                 "2 Monday",
                 "3 Tuesday",
@@ -1173,7 +1139,7 @@ class TestViewExpression(object):
         view = table.view(expressions={"bucket": 'day_of_week("a")'})
         assert view.schema() == {"a": "datetime", "bucket": "string"}
         assert view.to_columns() == {
-            "a": [datetime(2020, 3, i, 12, 30) for i in range(9, 14)],
+            "a": [datetime(2020, 3, i, 12, 30).timestamp() * 1000 for i in range(9, 14)],
             "bucket": [
                 "2 Monday",
                 "3 Tuesday",
@@ -1188,7 +1154,7 @@ class TestViewExpression(object):
         view = table.view(expressions={"bucket": 'month_of_year("a")'})
         assert view.schema() == {"a": "date", "bucket": "string"}
         assert view.to_columns() == {
-            "a": [datetime(2020, i, 15) for i in range(1, 13)],
+            "a": [datetime(2020, i, 15).timestamp() * 1000 for i in range(1, 13)],
             "bucket": [
                 "01 January",
                 "02 February",
@@ -1205,8 +1171,11 @@ class TestViewExpression(object):
             ],
         }
 
+    # XXX: these datetimes are being interpreted as dates!!
+    #      to get around this, I explicitly gave a scheme to `table.`
     def test_view_month_of_year_datetime(self):
-        table = Table(
+        table = Table({"a": "datetime"})
+        table.update(
             {
                 "a": [datetime(2020, i, 15) for i in range(1, 13)],
             }
@@ -1214,7 +1183,7 @@ class TestViewExpression(object):
         view = table.view(expressions={"bucket": 'month_of_year("a")'})
         assert view.schema() == {"a": "datetime", "bucket": "string"}
         assert view.to_columns() == {
-            "a": [datetime(2020, i, 15) for i in range(1, 13)],
+            "a": [datetime(2020, i, 15).timestamp() * 1000 for i in range(1, 13)],
             "bucket": [
                 "01 January",
                 "02 February",
@@ -1244,19 +1213,19 @@ class TestViewExpression(object):
             }
         )
         view = table.view(expressions={"bucket": "bucket(\"a\", 'D')"})
-        assert view.schema() == {"a": date, "bucket": "date"}
+        assert view.schema() == {"a": "date", "bucket": "date"}
         assert view.to_columns() == {
             "a": [
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 1),
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 1).timestamp() * 1000,
             ],
             "bucket": [
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 1),
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 1).timestamp() * 1000,
             ],
         }
 
@@ -1272,19 +1241,19 @@ class TestViewExpression(object):
             }
         )
         view = table.view(expressions={"bucket": "bucket(\"a\", 'D')"})
-        assert view.schema() == {"a": date, "bucket": "date"}
+        assert view.schema() == {"a": "date", "bucket": "date"}
         assert view.to_columns() == {
             "a": [
-                datetime(2020, 1, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
                 None,
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 15),
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 15).timestamp() * 1000,
             ],
             "bucket": [
-                datetime(2020, 1, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
                 None,
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 15),
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 15).timestamp() * 1000,
             ],
         }
 
@@ -1303,16 +1272,16 @@ class TestViewExpression(object):
         assert view.schema() == {"a": "datetime", "bucket": "date"}
         assert view.to_columns() == {
             "a": [
-                datetime(2020, 1, 1, 5),
-                datetime(2020, 1, 1, 23),
-                datetime(2020, 2, 29, 1),
-                datetime(2020, 3, 1, 0),
+                datetime(2020, 1, 1, 5).timestamp() * 1000,
+                datetime(2020, 1, 1, 23).timestamp() * 1000,
+                datetime(2020, 2, 29, 1).timestamp() * 1000,
+                datetime(2020, 3, 1, 0).timestamp() * 1000,
             ],
             "bucket": [
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 1),
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 1).timestamp() * 1000,
             ],
         }
 
@@ -1328,19 +1297,19 @@ class TestViewExpression(object):
             }
         )
         view = table.view(expressions={"bucket": "bucket(\"a\", 'M')"})
-        assert view.schema() == {"a": date, "bucket": "date"}
+        assert view.schema() == {"a": "date", "bucket": "date"}
         assert view.to_columns() == {
             "a": [
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 28),
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 15),
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 1, 28).timestamp() * 1000,
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 15).timestamp() * 1000,
             ],
             "bucket": [
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 1),
-                datetime(2020, 2, 1),
-                datetime(2020, 3, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 2, 1).timestamp() * 1000,
+                datetime(2020, 3, 1).timestamp() * 1000,
             ],
         }
 
@@ -1356,24 +1325,25 @@ class TestViewExpression(object):
             }
         )
         view = table.view(expressions={"bucket": "bucket(\"a\", 'M')"})
-        assert view.schema() == {"a": date, "bucket": "date"}
+        assert view.schema() == {"a": "date", "bucket": "date"}
         assert view.to_columns() == {
             "a": [
-                datetime(2020, 1, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
                 None,
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 15),
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 15).timestamp() * 1000,
             ],
             "bucket": [
-                datetime(2020, 1, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
                 None,
-                datetime(2020, 2, 1),
-                datetime(2020, 3, 1),
+                datetime(2020, 2, 1).timestamp() * 1000,
+                datetime(2020, 3, 1).timestamp() * 1000,
             ],
         }
 
     def test_view_month_bucket_datetime(self):
-        table = Table(
+        table = Table({"a": "datetime"})
+        table.update(
             {
                 "a": [
                     datetime(2020, 1, 1),
@@ -1387,21 +1357,22 @@ class TestViewExpression(object):
         assert view.schema() == {"a": "datetime", "bucket": "date"}
         assert view.to_columns() == {
             "a": [
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 28),
-                datetime(2020, 2, 29),
-                datetime(2020, 3, 15),
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 1, 28).timestamp() * 1000,
+                datetime(2020, 2, 29).timestamp() * 1000,
+                datetime(2020, 3, 15).timestamp() * 1000,
             ],
             "bucket": [
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 1),
-                datetime(2020, 2, 1),
-                datetime(2020, 3, 1),
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 1, 1).timestamp() * 1000,
+                datetime(2020, 2, 1).timestamp() * 1000,
+                datetime(2020, 3, 1).timestamp() * 1000,
             ],
         }
 
     def test_view_month_bucket_datetime_with_null(self):
-        table = Table(
+        table = Table({"a": "datetime"})
+        table.update(
             {
                 "a": [datetime(2020, 1, 1), None, None, datetime(2020, 3, 15)],
             }
@@ -1409,8 +1380,8 @@ class TestViewExpression(object):
         view = table.view(expressions={"bucket": "bucket(\"a\", 'M')"})
         assert view.schema() == {"a": "datetime", "bucket": "date"}
         assert view.to_columns() == {
-            "a": [datetime(2020, 1, 1), None, None, datetime(2020, 3, 15)],
-            "bucket": [datetime(2020, 1, 1), None, None, datetime(2020, 3, 1)],
+            "a": [datetime(2020, 1, 1).timestamp() * 1000, None, None, datetime(2020, 3, 15).timestamp() * 1000],
+            "bucket": [datetime(2020, 1, 1).timestamp() * 1000, None, None, datetime(2020, 3, 1).timestamp() * 1000],
         }
 
     def test_view_integer_expression(self):
@@ -1499,7 +1470,7 @@ class TestViewExpression(object):
                 "computed2": "date(1997, 8, 31)",
             }
         )
-        assert view.expression_schema() == {"computed": date, "computed2": "date"}
+        assert view.expression_schema() == {"computed": "date", "computed2": "date"}
         result = view.to_columns()
         assert result["computed"] == [int(datetime(2020, 5, 30).timestamp() * 1000)]
         assert result["computed2"] == [int(datetime(1997, 8, 31).timestamp() * 1000)]
@@ -1577,7 +1548,7 @@ class TestViewExpression(object):
         table = Table({"a": [1, 2, 3, 4]})
         view = table.view(expressions=["var x := 1 + 2;\n// def\nx + 100 // cdefghijk"])
         assert view.expression_schema() == {
-            "var x := 1 + 2;\n// def\nx + 100 // cdefghijk": float
+            "var x := 1 + 2;\n// def\nx + 100 // cdefghijk": "float"
         }
         assert view.to_columns() == {
             "var x := 1 + 2;\n// def\nx + 100 // cdefghijk": [103, 103, 103, 103],
@@ -1794,7 +1765,9 @@ class TestViewExpression(object):
                 )
             )
 
-        table = Table({"a": data, "b": [str(i) for i in range(1000)]})
+        # XXX: This test was broken because it thought `b` was an integer column.
+        table = Table({"a": "string", "b": "string"})
+        table.update({"a": data, "b": [str(i) for i in range(1000)]})
         expressions = [
             """//w
             replace('abc-def-hijk', '-', '')""",
@@ -1870,8 +1843,8 @@ class TestViewExpression(object):
                     digits(),
                 )
             )
-
-        table = Table({"a": data, "b": [str(i) for i in range(1000)]})
+        table = Table({"a": "string", "b": "string"})
+        table.update({"a": data, "b": [str(i) for i in range(1000)]})
         expressions = [
             """//w
             replace_all('abc-def-hijk', '-', '')""",

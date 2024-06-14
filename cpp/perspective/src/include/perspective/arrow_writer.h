@@ -297,7 +297,7 @@ namespace apachearrow {
                 date::day day{static_cast<std::uint32_t>(val.day())};
                 date::year_month_day ymd(year, month, day);
                 date::sys_days days_since_epoch = ymd;
-                array_builder.UnsafeAppend(static_cast<std::int32_t>(
+                auto tpm = array_builder.UnsafeAppend(static_cast<std::int32_t>(
                     days_since_epoch.time_since_epoch().count()
                 ));
             } else {

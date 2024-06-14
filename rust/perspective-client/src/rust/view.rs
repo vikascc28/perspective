@@ -349,7 +349,7 @@ impl View {
     }
 
     #[doc = include_str!("../../docs/view/collapse.md")]
-    pub async fn collapse(&self, row_index: i32) -> ClientResult<i64> {
+    pub async fn collapse(&self, row_index: u32) -> ClientResult<u32> {
         let msg = self.client_message(ClientReq::ViewCollapseReq(ViewCollapseReq { row_index }));
         match self.client.oneshot(&msg).await? {
             ClientResp::ViewCollapseResp(ViewCollapseResp { num_changed }) => Ok(num_changed),
@@ -358,7 +358,7 @@ impl View {
     }
 
     #[doc = include_str!("../../docs/view/expand.md")]
-    pub async fn expand(&self, row_index: i32) -> ClientResult<i64> {
+    pub async fn expand(&self, row_index: u32) -> ClientResult<u32> {
         let msg = self.client_message(ClientReq::ViewExpandReq(ViewExpandReq { row_index }));
         match self.client.oneshot(&msg).await? {
             ClientResp::ViewExpandResp(ViewExpandResp { num_changed }) => Ok(num_changed),
@@ -367,7 +367,7 @@ impl View {
     }
 
     #[doc = include_str!("../../docs/view/set_depth.md")]
-    pub async fn set_depth(&self, depth: i32) -> ClientResult<()> {
+    pub async fn set_depth(&self, depth: u32) -> ClientResult<()> {
         let msg = self.client_message(ClientReq::ViewSetDepthReq(ViewSetDepthReq { depth }));
         match self.client.oneshot(&msg).await? {
             ClientResp::ViewSetDepthResp(_) => Ok(()),

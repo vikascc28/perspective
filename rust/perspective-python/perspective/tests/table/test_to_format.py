@@ -17,7 +17,7 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 import pytz
-from perspective.table import Table
+from perspective import Table
 from pytest import mark
 
 IS_WIN = os.name == "nt"
@@ -51,8 +51,8 @@ class TestToFormat(object):
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": dt, "b": "string2"},
-            {"a": dt, "b": "string4"},
+            {"a": dt.timestamp() * 1000, "b": "string2"},
+            {"a": dt.timestamp() * 1000, "b": "string4"},
         ]
 
     def test_to_records_date_no_dst(self):
@@ -63,8 +63,8 @@ class TestToFormat(object):
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": dt, "b": "string2"},
-            {"a": dt, "b": "string4"},
+            {"a": dt.timestamp() * 1000, "b": "string2"},
+            {"a": dt.timestamp() * 1000, "b": "string4"},
         ]
 
     def test_to_records_date_str(self):
@@ -75,8 +75,8 @@ class TestToFormat(object):
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": datetime(2019, 3, 11), "b": "string2"},
-            {"a": datetime(2019, 3, 12), "b": "string4"},
+            {"a": datetime(2019, 3, 11).timestamp() * 1000, "b": "string2"},
+            {"a": datetime(2019, 3, 12).timestamp() * 1000, "b": "string4"},
         ]
 
     def test_to_records_date_str_month_first(self):
@@ -85,8 +85,8 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.schema() == {"a": "date", "b": "string"}
         assert view.to_records() == [
-            {"a": datetime(2019, 1, 2), "b": "string2"},
-            {"a": datetime(2019, 3, 4), "b": "string4"},
+            {"a": datetime(2019, 1, 2).timestamp() * 1000, "b": "string2"},
+            {"a": datetime(2019, 3, 4).timestamp() * 1000, "b": "string4"},
         ]
 
     def test_to_records_date_str_month_ymd(self):
@@ -98,8 +98,8 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.schema() == {"a": "date", "b": "string"}
         assert view.to_records() == [
-            {"a": datetime(2019, 1, 2), "b": "string2"},
-            {"a": datetime(2019, 3, 4), "b": "string4"},
+            {"a": datetime(2019, 1, 2).timestamp() * 1000, "b": "string2"},
+            {"a": datetime(2019, 3, 4).timestamp() * 1000, "b": "string4"},
         ]
 
     def test_to_records_datetime(self):
@@ -117,8 +117,8 @@ class TestToFormat(object):
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": datetime(2019, 3, 11, 15, 15), "b": "string2"},
-            {"a": datetime(2019, 3, 11, 15, 20), "b": "string4"},
+            {"a": datetime(2019, 3, 11, 15, 15).timestamp() * 1000, "b": "string2"},
+            {"a": datetime(2019, 3, 11, 15, 20).timestamp() * 1000, "b": "string4"},
         ]
 
     def test_to_records_datetime_str_tz(self):
@@ -130,8 +130,8 @@ class TestToFormat(object):
         for r in records:
             r["a"] = r["a"].replace(tzinfo=pytz.utc)
         assert records == [
-            {"a": datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc)},
-            {"a": datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc)},
+            {"a": datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc).timestamp() * 1000},
+            {"a": datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc).timestamp() * 1000},
         ]
 
     def test_to_records_datetime_ms_str(self):
@@ -139,8 +139,8 @@ class TestToFormat(object):
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": datetime(2019, 3, 11, 15, 15, 15, 999000)},
-            {"a": datetime(2019, 3, 11, 15, 15, 16, 1000)},
+            {"a": datetime(2019, 3, 11, 15, 15, 15, 999000).timestamp() * 1000},
+            {"a": datetime(2019, 3, 11, 15, 15, 16, 1000).timestamp() * 1000},
         ]
 
     def test_to_records_none(self):
@@ -198,42 +198,42 @@ class TestToFormat(object):
             },
         ]
 
-    # to_dict
+    # to_columns
 
-    def test_to_dict_int(self):
+    def test_to_columns_int(self):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
         assert view.to_columns() == {"a": [1, 3], "b": [2, 4]}
 
-    def test_to_dict_float(self):
+    def test_to_columns_float(self):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
         view = tbl.view()
         assert view.to_columns() == {"a": [1.5, 3.5], "b": [2.5, 4.5]}
 
-    def test_to_dict_date(self):
+    def test_to_columns_date(self):
         today = date.today()
         dt = datetime(today.year, today.month, today.day)
         data = [{"a": today, "b": 2}, {"a": today, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_columns() == {"a": [dt, dt], "b": [2, 4]}
+        assert view.to_columns() == {"a": [dt.timestamp() * 1000, dt.timestamp() * 1000], "b": [2, 4]}
 
-    def test_to_dict_datetime(self):
+    def test_to_columns_datetime(self):
         dt = datetime(2019, 3, 15, 20, 30, 59, 6000)
         data = [{"a": dt, "b": 2}, {"a": dt, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_columns() == {"a": [dt, dt], "b": [2, 4]}
+        assert view.to_columns() == {"a": [dt.timestamp() * 1000, dt.timestamp() * 1000], "b": [2, 4]}
 
-    def test_to_dict_bool(self):
+    def test_to_columns_bool(self):
         data = [{"a": True, "b": False}, {"a": True, "b": False}]
         tbl = Table(data)
         view = tbl.view()
         assert view.to_columns() == {"a": [True, True], "b": [False, False]}
 
-    def test_to_dict_string(self):
+    def test_to_columns_string(self):
         data = [{"a": "string1", "b": "string2"}, {"a": "string3", "b": "string4"}]
         tbl = Table(data)
         view = tbl.view()
@@ -242,19 +242,19 @@ class TestToFormat(object):
             "b": ["string2", "string4"],
         }
 
-    def test_to_dict_none(self):
+    def test_to_columns_none(self):
         data = [{"a": None, "b": None}, {"a": None, "b": None}]
         tbl = Table(data)
         view = tbl.view()
         assert view.to_columns() == {"a": [None, None], "b": [None, None]}
 
-    def test_to_dict_one(self):
+    def test_to_columns_one(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"])
         assert view.to_columns() == {"__ROW_PATH__": [[], [1]], "a": [2, 2], "b": [4, 4]}
 
-    def test_to_dict_two(self):
+    def test_to_columns_two(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"])
@@ -264,7 +264,7 @@ class TestToFormat(object):
             "2|b": [4, 4],
         }
 
-    def test_to_dict_column_only(self):
+    def test_to_columns_column_only(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(split_by=["b"])
@@ -273,19 +273,19 @@ class TestToFormat(object):
             "2|b": [2, 2],
         }
 
-    def test_to_dict_one_no_columns(self):
+    def test_to_columns_one_no_columns(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], columns=[])
         assert view.to_columns() == {"__ROW_PATH__": [[], [1]]}
 
-    def test_to_dict_two_no_columns(self):
+    def test_to_columns_two_no_columns(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"], columns=[])
         assert view.to_columns() == {"__ROW_PATH__": [[], [1]]}
 
-    def test_to_dict_column_only_no_columns(self):
+    def test_to_columns_column_only_no_columns(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(split_by=["b"], columns=[])
@@ -293,6 +293,7 @@ class TestToFormat(object):
 
     # to_numpy
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_int(self):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
         tbl = Table(data)
@@ -301,6 +302,7 @@ class TestToFormat(object):
         assert np.array_equal(v["a"], np.array([1, 3]))
         assert np.array_equal(v["b"], np.array([2, 4]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_float(self):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
@@ -309,6 +311,7 @@ class TestToFormat(object):
         assert np.array_equal(v["a"], np.array([1.5, 3.5]))
         assert np.array_equal(v["b"], np.array([2.5, 4.5]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_bool(self):
         data = [{"a": True, "b": False}, {"a": True, "b": False}]
         tbl = Table(data)
@@ -317,6 +320,7 @@ class TestToFormat(object):
         assert np.array_equal(v["a"], np.array([True, True]))
         assert np.array_equal(v["b"], np.array([False, False]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_date(self):
         today = date.today()
         dt = datetime(today.year, today.month, today.day)
@@ -326,6 +330,7 @@ class TestToFormat(object):
         v = view.to_numpy()
         assert np.array_equal(v["a"], np.array([dt, dt]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_datetime(self):
         dt = datetime(2019, 3, 15, 20, 30, 59, 6000)
         data = [{"a": dt}, {"a": dt}]
@@ -334,6 +339,7 @@ class TestToFormat(object):
         v = view.to_numpy()
         assert np.array_equal(v["a"], np.array([dt, dt]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_string(self):
         data = [{"a": "string1", "b": "string2"}, {"a": "string3", "b": "string4"}]
         tbl = Table(data)
@@ -342,6 +348,7 @@ class TestToFormat(object):
         assert np.array_equal(v["a"], np.array(["string1", "string3"]))
         assert np.array_equal(v["b"], np.array(["string2", "string4"]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_none(self):
         data = [{"a": None, "b": None}, {"a": None, "b": None}]
         tbl = Table(data)
@@ -350,6 +357,7 @@ class TestToFormat(object):
         assert np.array_equal(v["a"], np.array([None, None]))
         assert np.array_equal(v["b"], np.array([None, None]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_one(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
@@ -359,6 +367,7 @@ class TestToFormat(object):
         assert np.array_equal(v["a"], np.array([2, 2]))
         assert np.array_equal(v["b"], np.array([4, 4]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_two(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
@@ -368,6 +377,7 @@ class TestToFormat(object):
         assert np.array_equal(v["2|a"], np.array([2, 2]))
         assert np.array_equal(v["2|b"], np.array([4, 4]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_numpy_column_only(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
@@ -376,6 +386,7 @@ class TestToFormat(object):
         assert np.array_equal(v["2|a"], np.array([1, 1]))
         assert np.array_equal(v["2|b"], np.array([2, 2]))
 
+    @mark.skip(reason="No numpy support")
     def test_to_pandas_df_simple(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         df = pd.DataFrame(data)
@@ -386,6 +397,7 @@ class TestToFormat(object):
         assert np.array_equal(df2["a"].values, df["a"].values)
         assert np.array_equal(df2["b"].values, df["b"].values)
 
+    @mark.skip(reason="No numpy support")
     def test_to_pandas_df_simple_series(self):
         inp = pd.Series([1, 2, 3], name="a")
         df = pd.DataFrame()
@@ -723,11 +735,11 @@ class TestToFormat(object):
         # start_col and end_col access columns at that index - dict key order not guaranteed in python2
         assert records == [{"b": 2}, {"b": 4}]
 
-    def test_to_dict_start_col_end_col(self):
+    def test_to_columns_start_col_end_col(self):
         data = [{"a": 1, "b": 2, "c": 3, "d": 4}, {"a": 3, "b": 4, "c": 5, "d": 6}]
         tbl = Table(data)
         view = tbl.view()
-        d = view.to_dict(start_col=1, end_col=3)
+        d = view.to_columns(start_col=1, end_col=3)
         assert d == {"b": [2, 4], "c": [3, 5]}
 
     # to csv
@@ -856,7 +868,7 @@ class TestToFormat(object):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict(index=True) == {
+        assert view.to_columns(index=True) == {
             "__INDEX__": [[0], [1]],
             "a": [1.5, 3.5],
             "b": [2.5, 4.5],
@@ -875,17 +887,17 @@ class TestToFormat(object):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_dict(id=True) == {
+        assert view.to_columns(id=True) == {
             "__ID__": [[0], [1]],
             "a": [1.5, 3.5],
             "b": [2.5, 4.5],
         }
 
-    def test_to_format_implicit_index_two_dict(self):
+    def test_to_format_implicit_index_two_dict_1(self):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"])
-        assert view.to_dict(index=True) == {
+        assert view.to_columns(index=True) == {
             "2.5|a": [1.5, 1.5, None],
             "2.5|b": [2.5, 2.5, None],
             "4.5|a": [3.5, None, 3.5],
@@ -898,11 +910,11 @@ class TestToFormat(object):
             "__ROW_PATH__": [[], [1.5], [3.5]],
         }
 
-    def test_to_format_implicit_index_two_dict(self):
+    def test_to_format_implicit_index_two_dict_2(self):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"], split_by=["b"])
-        assert view.to_dict(id=True) == {
+        assert view.to_columns(id=True) == {
             "2.5|a": [1.5, 1.5, None],
             "2.5|b": [2.5, 2.5, None],
             "4.5|a": [3.5, None, 3.5],
@@ -915,6 +927,7 @@ class TestToFormat(object):
             "__ROW_PATH__": [[], [1.5], [3.5]],
         }
 
+    @mark.skip(reason="No numpy support")
     def test_to_format_implicit_index_np(self):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data)
@@ -935,12 +948,13 @@ class TestToFormat(object):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data, index="a")
         view = tbl.view()
-        assert view.to_dict(index=True) == {
+        assert view.to_columns(index=True) == {
             "__INDEX__": [[1.5], [3.5]],
             "a": [1.5, 3.5],
             "b": [2.5, 4.5],
         }
 
+    @mark.skip(reason="No numpy supprt")
     def test_to_format_explicit_index_np(self):
         data = [{"a": 1.5, "b": 2.5}, {"a": 3.5, "b": 4.5}]
         tbl = Table(data, index="a")
@@ -966,13 +980,13 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.to_records(index=True) == [
             {
-                "__INDEX__": [datetime(2019, 7, 11, 9, 0)],
-                "a": datetime(2019, 7, 11, 9, 0),
+                "__INDEX__": [datetime(2019, 7, 11, 9, 0).timestamp() * 1000],
+                "a": datetime(2019, 7, 11, 9, 0).timestamp() * 1000,
                 "b": 2.5,
             },
             {
-                "__INDEX__": [datetime(2019, 7, 11, 9, 1)],
-                "a": datetime(2019, 7, 11, 9, 1),
+                "__INDEX__": [datetime(2019, 7, 11, 9, 1).timestamp() * 1000],
+                "a": datetime(2019, 7, 11, 9, 1).timestamp() * 1000,
                 "b": 4.5,
             },
         ]

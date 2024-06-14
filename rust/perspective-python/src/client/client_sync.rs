@@ -233,6 +233,16 @@ impl PySyncView {
         self.0.delete().block_on()
     }
 
+    #[doc = include_str!("../../docs/view/expand.md")]
+    fn expand(&self, index: u32) -> PyResult<u32> {
+        self.0.expand(index).block_on()
+    }
+
+    #[doc = include_str!("../../docs/view/collapse.md")]
+    fn collapse(&self, index: u32) -> PyResult<u32> {
+        self.0.collapse(index).block_on()
+    }
+
     #[doc = include_str!("../../docs/view/dimensions.md")]
     fn dimensions(&self) -> PyResult<Py<PyAny>> {
         self.0.dimensions().block_on()
