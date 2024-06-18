@@ -19,7 +19,7 @@ import pandas as pd
 from datetime import date, datetime, timedelta
 from dateutil import tz
 from pytest import mark
-from perspective.table import Table
+from perspective import Table
 
 LOCAL_DATETIMES = [
     datetime(2019, 1, 11, 0, 10, 20),

@@ -15,6 +15,8 @@ from .viewer_traitlets import PerspectiveTraitlets
 
 from ..core.exception import PerspectiveError
 from ..legacy import PerspectiveManager, Table
+from ..perspective import PySyncTable
+
 
 
 class PerspectiveViewer(PerspectiveTraitlets, object):
@@ -110,15 +112,15 @@ class PerspectiveViewer(PerspectiveTraitlets, object):
         self.table_name = None
 
         # Viewer configuration
-        self.plugin = validate_plugin(plugin)
-        self.columns = validate_columns(columns) or []
-        self.group_by = validate_group_by(group_by) or []
-        self.split_by = validate_split_by(split_by) or []
-        self.aggregates = validate_aggregates(aggregates) or {}
-        self.sort = validate_sort(sort) or []
-        self.filter = validate_filter(filter) or []
-        self.expressions = validate_expressions(expressions) or {}
-        self.plugin_config = validate_plugin_config(plugin_config) or {}
+        self.plugin = plugin # validate_plugin(plugin)
+        self.columns = columns or [] # validate_columns(columns) or []
+        self.group_by = group_by or [] # validate_group_by(group_by) or []
+        self.split_by = split_by or [] # validate_split_by(split_by) or []
+        self.aggregates = aggregates or {} # validate_aggregates(aggregates) or {}
+        self.sort = sort or [] # validate_sort(sort) or []
+        self.filter = filter or [] # validate_filter(filter) or []
+        self.expressions = expressions or {} # validate_expressions(expressions) or {}
+        self.plugin_config = plugin_config or {} # validate_plugin_config(plugin_config) or {}
         self.settings = settings
         self.theme = theme
         self.title = title

@@ -14,7 +14,7 @@ import sys
 from datetime import date, datetime, timezone
 
 from perspective.core.exception import PerspectiveError
-from perspective.table import Table
+from perspective import Table
 import perspective
 from pytest import mark, raises, skip
 import pytest

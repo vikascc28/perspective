@@ -107,7 +107,9 @@ class TestToFormat(object):
         data = [{"a": dt, "b": "string2"}, {"a": dt, "b": "string4"}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_records() == data  # should have symmetric input/output
+        data_out = [{"a": dt.timestamp() * 1000, "b": "string2"},
+                    {"a": dt.timestamp() * 1000, "b": "string4"}]
+        assert view.to_records() == data_out  # should have symmetric input/output
 
     def test_to_records_datetime_str(self):
         data = [
@@ -116,6 +118,7 @@ class TestToFormat(object):
         ]
         tbl = Table(data)
         view = tbl.view()
+        assert view.schema()["a"] == "datetime"
         assert view.to_records() == [
             {"a": datetime(2019, 3, 11, 15, 15).timestamp() * 1000, "b": "string2"},
             {"a": datetime(2019, 3, 11, 15, 20).timestamp() * 1000, "b": "string4"},
@@ -126,6 +129,7 @@ class TestToFormat(object):
         data = [{"a": dt}, {"a": dt}]
         tbl = Table(data)
         view = tbl.view()
+        assert view.schema()["a"] == "datetime"
         records = view.to_records()
         for r in records:
             r["a"] = r["a"].replace(tzinfo=pytz.utc)
@@ -138,6 +142,7 @@ class TestToFormat(object):
         data = [{"a": "03/11/2019 3:15:15.999PM"}, {"a": "3/11/2019 3:15:16.001PM"}]
         tbl = Table(data)
         view = tbl.view()
+        assert view.schema()["a"] == "datetime"
         assert view.to_records() == [
             {"a": datetime(2019, 3, 11, 15, 15, 15, 999000).timestamp() * 1000},
             {"a": datetime(2019, 3, 11, 15, 15, 16, 1000).timestamp() * 1000},
@@ -744,6 +749,7 @@ class TestToFormat(object):
 
     # to csv
 
+    # XXX: Table(pandas_df) does not include the index column anymore.
     def test_to_csv_symmetric(self):
         csv = "a,b\n1,2\n3,4"
         df = pd.read_csv(StringIO(csv))
@@ -768,10 +774,11 @@ class TestToFormat(object):
         dt_str = today.strftime("%Y-%m-%d")
         data = [{"a": today, "b": 2}, {"a": today, "b": 4}]
         tbl = Table(data)
-        assert tbl.schema()["a"] == date
+        assert tbl.schema()["a"] == "date"
         view = tbl.view()
         assert view.to_csv() == '"a","b"\n{},2\n{},4\n'.format(dt_str, dt_str)
 
+    # XXX: Broken because our datetime parsing is broken
     def test_to_csv_datetime(self):
         dt = datetime(2019, 3, 15, 20, 30, 59, 6000)
         dt_str = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
