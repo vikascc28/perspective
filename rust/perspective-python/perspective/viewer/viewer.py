@@ -15,8 +15,6 @@ from .viewer_traitlets import PerspectiveTraitlets
 
 from ..core.exception import PerspectiveError
 from ..legacy import PerspectiveManager, Table
-from ..perspective import PySyncTable
-
 
 
 class PerspectiveViewer(PerspectiveTraitlets, object):
