@@ -522,7 +522,9 @@ PROMOTE_IMPL(DTYPE_INT32, DTYPE_INT64, DTYPE_INT64)
 template <typename A>
 static A
 json_into(const rapidjson::Value& value) {
-    if constexpr (std::is_same_v<A, std::int32_t> || std::is_same_v<A, std::int64_t> || std::is_same_v<A, double>) {
+    if constexpr (std::is_same_v<A, std::int32_t>
+                  || std::is_same_v<A, std::int64_t>
+                  || std::is_same_v<A, double>) {
         if (value.IsInt()) {
             return value.GetInt();
         }
@@ -540,7 +542,8 @@ json_into(const rapidjson::Value& value) {
                 return std::atoi(value.GetString());
             } else if constexpr (std::is_same_v<A, std::int64_t>) {
                 return std::atoll(value.GetString());
-            } else if constexpr (std::is_same_v<A, double> || std::is_same_v<A, float>) {
+            } else if constexpr (std::is_same_v<A, double>
+                                 || std::is_same_v<A, float>) {
                 return std::atof(value.GetString());
             } else {
                 static_assert(!std::is_same_v<A, A>, "No coercion for type");
@@ -757,9 +760,11 @@ fill_column_json(
         case t_dtype::DTYPE_BOOL: {
             if (value.IsBool()) [[likely]] {
                 col->set_nth<bool>(i, value.GetBool());
-            } else if (value.IsString() && istrequals(value.GetString(), "true")) {
+            } else if (value.IsString()
+                       && istrequals(value.GetString(), "true")) {
                 col->set_nth<bool>(i, true);
-            } else if (value.IsString() && istrequals(value.GetString(), "false")) {
+            } else if (value.IsString()
+                       && istrequals(value.GetString(), "false")) {
                 col->set_nth<bool>(i, false);
             } else if (value.IsInt()) {
                 col->set_nth<bool>(i, value.GetInt() != 0);
@@ -1405,10 +1410,16 @@ Table::update_arrow(const std::string_view& data, std::uint32_t port_id) {
     data_table.extend(row_count);
     auto input_schema = this->get_schema();
 
-    if (m_index.empty()) {
-        input_schema.add_column("__INDEX__", DTYPE_INT32);
-    } else {
-        input_schema.add_column("__INDEX__", input_schema.get_dtype(m_index));
+    auto arrow_names = arrow_loader.names();
+    if (std::find(arrow_names.begin(), arrow_names.end(), "__INDEX__")
+        != arrow_names.end()) {
+        if (m_index.empty()) {
+            input_schema.add_column("__INDEX__", DTYPE_INT32);
+        } else {
+            input_schema.add_column(
+                "__INDEX__", input_schema.get_dtype(m_index)
+            );
+        }
     }
 
     arrow_loader.fill_table(
@@ -1445,7 +1456,7 @@ Table::from_arrow(
         // position of the column is at the same index in both
         // vectors
         columns.erase(columns.begin() + idx);
-        columns.erase(columns.begin() + idx);
+        types.erase(types.begin() + idx);
     }
 
     t_schema output_schema{columns, types};

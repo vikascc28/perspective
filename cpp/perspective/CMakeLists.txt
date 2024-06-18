@@ -6,6 +6,11 @@ set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(CMAKE_CXX_FLAGS " \
+    ${CMAKE_CXX_FLAGS} \
+    -fsanitize=address \
+    ")
+
 # CMAKE POLICIES
 # option() should use new cmake behavior wrt variable clobbering
 cmake_policy(SET CMP0077 NEW)
@@ -241,7 +246,6 @@ if(PSP_WASM_BUILD)
         set(OPT_FLAGS " \
             -O3 \
             -g0 \
-            -flto \
             -mnontrapping-fptoint \
             -s SUPPORT_LONGJMP=wasm \
             -fwasm-exceptions \
@@ -288,7 +292,6 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
                 -g1 \
                 ")
             if (PSP_PYODIDE)
-                set(OPT_FLAGS "${OPT_FLAGS} -flto")
             endif ()
         endif()
     endif()
@@ -379,12 +382,10 @@ set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Disable rapidjson tests")
 
 set(CMAKE_C_FLAGS "  \
 -O3 \
--flto \
 -mnontrapping-fptoint \
 ")
 set(CMAKE_CXX_FLAGS " \
 -O3 \
--flto \
 -mnontrapping-fptoint \
 ")
 

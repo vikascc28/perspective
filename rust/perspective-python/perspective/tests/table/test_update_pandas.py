@@ -133,16 +133,12 @@ class TestUpdatePandas(object):
 
         assert tbl.view().to_columns() == {"a": [5, 6, 7, 8], "b": ["a", "b", "c", "d"]}
 
-    # XXX: SAVE ME
     def test_update_df_partial_implicit(self):
         tbl = Table({"a": [1, 2, 3, 4]})
 
         update_data = pd.DataFrame({"a": [5, 6, 7, 8], "__INDEX__": [0, 1, 2, 3]})
 
         tbl.update(update_data)
-
-        # print(f"CSV???? {tbl.view().to_csv()}")
-        # assert tbl.view().to_columns() == tbl2.view().to_columns()
 
         assert tbl.view().to_columns() == {"a": [5, 6, 7, 8]}
 
@@ -184,12 +180,12 @@ class TestUpdatePandas(object):
 
     def test_update_df_unset_partial(self):
         tbl = Table({"a": [1, 2, 3], "b": ["a", "b", "c"]}, index="b")
-        update_data = pd.DataFrame({"a": [None, None], "b": ["a", "c"]})
+        update_data = pd.DataFrame({"a": pd.Series([None, None], dtype=pd.Int32Dtype()), "b": ["a", "c"]})
         tbl.update(update_data)
         assert tbl.view().to_columns() == {"a": [None, 2, None], "b": ["a", "b", "c"]}
 
     def test_update_df_nan_partial(self):
         tbl = Table({"a": [1, 2, 3], "b": ["a", "b", "c"]}, index="b")
-        update_data = pd.DataFrame({"a": [None, None], "b": ["a", "c"]})
+        update_data = pd.DataFrame({"a": pd.Series([None, None], dtype=pd.Int32Dtype()), "b": ["a", "c"]})
         tbl.update(update_data)
         assert tbl.view().to_columns() == {"a": [None, 2, None], "b": ["a", "b", "c"]}
