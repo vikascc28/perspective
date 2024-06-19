@@ -51,7 +51,7 @@ fn cmake_build() -> Result<(), std::io::Error> {
     }
 
     let mut dst = Config::new("cpp/perspective");
-    let profile = std::env::var("PROFILE").unwrap();
+    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "debug".to_owned());
     dst.always_configure(true);
     dst.define("CMAKE_BUILD_TYPE", profile.as_str());
     dst.define("PSP_WASM_BUILD", "0");

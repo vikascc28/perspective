@@ -10,9 +10,6 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-#![feature(cell_update)]
-#![feature(let_chains)]
-#![feature(closure_lifetime_binder)]
 #![warn(
     clippy::all,
     clippy::panic_in_result_fn,

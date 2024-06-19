@@ -89,16 +89,15 @@ impl JsClient {
             send1.call1(&JsValue::UNDEFINED, &buff2)
         });
 
-        JsClient {
-            close: close.clone(),
-            client: Client::new(move |_client, msg| {
-                let task = send_loop.poll(msg.to_vec());
-                async move {
-                    task.await;
-                    Ok(())
-                }
-            }),
-        }
+        let client = Client::new(move |_client, msg| {
+            let task = send_loop.poll(msg.to_vec());
+            async move {
+                task.await;
+                Ok(())
+            }
+        });
+
+        JsClient { close, client }
     }
 
     #[wasm_bindgen]

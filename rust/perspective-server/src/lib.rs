@@ -52,8 +52,6 @@
 //!   locally, e.g. for when you build this crate in-place in the Perspective
 //!   repo source tree.
 
-#![feature(lazy_cell)]
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
