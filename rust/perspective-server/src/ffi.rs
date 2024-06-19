@@ -40,6 +40,7 @@ pub struct Response {
     pub client_id: u32,
     pub resp: Vec<u8>,
 }
+
 pub struct ResponseBatch(pub Vec<Response>);
 
 impl Deref for ResponseBatch {

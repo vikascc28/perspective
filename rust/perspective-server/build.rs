@@ -51,7 +51,7 @@ fn cmake_build() -> Result<(), std::io::Error> {
     }
 
     let mut dst = Config::new("cpp/perspective");
-    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "debug".to_owned());
+    let profile = std::env::var("PROFILE").unwrap();
     dst.always_configure(true);
     dst.define("CMAKE_BUILD_TYPE", profile.as_str());
     dst.define("PSP_WASM_BUILD", "0");
@@ -63,7 +63,6 @@ fn cmake_build() -> Result<(), std::io::Error> {
     dst.build_arg(format!("-j{}", num_cpus::get()));
     println!("cargo:warning=MESSAGE Building cmake {}", profile);
     let artifact = dst.build();
-
     println!("cargo:warning=MESSAGE Building cxx");
     cxx_build::bridge("src/ffi.rs")
         .file("src/server.cpp")

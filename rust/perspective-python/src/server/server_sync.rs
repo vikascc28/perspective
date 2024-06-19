@@ -42,16 +42,19 @@ impl PySyncServer {
             .server
             .new_session(move |response| {
                 clone!(response_cb);
-                Python::with_gil(move |py| {
-                    response_cb.call1(py, (PyBytes::new_bound(py, response),))
-                })?;
-                Ok(())
+                let response = response.to_vec();
+                async move {
+                    Python::with_gil(|py| {
+                        response_cb.call1(py, (PyBytes::new_bound(py, &response),))
+                    })?;
+
+                    Ok(())
+                }
             })
             .block_on();
 
-        PySyncSession {
-            session: Arc::new(session),
-        }
+        let session = Arc::new(session);
+        PySyncSession { session }
     }
 }
 

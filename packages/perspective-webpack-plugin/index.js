@@ -53,18 +53,6 @@ class PerspectiveWebpackPlugin {
         fallbackOptions.path = false;
         fallbackOptions.fs = false;
 
-        rules.push({
-            test: /perspective-server\.js$/,
-            type: "javascript/auto",
-            include: this.options.workerPath,
-            use: {
-                loader: require.resolve("worker-loader"),
-                options: {
-                    filename: this.options.workerName,
-                },
-            },
-        });
-
         if (this.options.inline || this.options.inlineWorker) {
             rules[rules.length - 1].use.options.inline = "no-fallback";
         }

@@ -246,8 +246,6 @@ if(PSP_WASM_BUILD)
         set(OPT_FLAGS " \
             -O3 \
             -g0 \
-            -mnontrapping-fptoint \
-            -s SUPPORT_LONGJMP=wasm \
             -fwasm-exceptions \
             ")
     endif()
@@ -382,11 +380,9 @@ set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Disable rapidjson tests")
 
 set(CMAKE_C_FLAGS "  \
 -O3 \
--mnontrapping-fptoint \
 ")
 set(CMAKE_CXX_FLAGS " \
 -O3 \
--mnontrapping-fptoint \
 ")
 
 

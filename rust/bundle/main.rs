@@ -10,8 +10,6 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-#![feature(lazy_cell)]
-
 use std::path::Path;
 use std::process::{exit, Command};
 
@@ -40,10 +38,6 @@ use wasm_opt::OptimizationOptions;
 /// script's parameters also, and there is no way to reset e.g. the `target`
 /// field to the host platform.
 fn build(pkg: Option<&str>, is_release: bool, features: Vec<String>) {
-    let mut debug_flags = vec![];
-    if is_release {
-        debug_flags.push("--release");
-    }
 
     let features = format!("tracing/release_max_level_warn,{}", features.join(","));
     let mut cmd = Command::new("cargo");
@@ -52,8 +46,11 @@ fn build(pkg: Option<&str>, is_release: bool, features: Vec<String>) {
         .args(["--features", &features])
         .args(["--target", "wasm32-unknown-unknown"])
         .args(["-Z", "build-std=std,panic_abort"])
-        .args(["-Z", "build-std-features=panic_immediate_abort"])
-        .args(debug_flags);
+        .args(["-Z", "build-std-features=panic_immediate_abort"]);
+
+    if is_release {
+        cmd.args(["--release"]);
+    }
 
     if let Some(pkg) = pkg {
         cmd.args(["-p", pkg]);
@@ -80,24 +77,24 @@ fn bindgen(outdir: &Path, artifact: &str, is_release: bool) {
 
 /// Run `wasm-opt` and output the new binary on top of the old one.
 fn opt(outpath: &Path, is_release: bool) {
-    let mut debug_flags = vec![];
     if is_release {
         OptimizationOptions::new_optimize_for_size_aggressively()
             .one_caller_inline_max_size(19306)
             .run(outpath, outpath)
             .unwrap();
-
-        debug_flags.push("--release");
     }
 
-    Command::new("cargo")
-        .args(["run"])
+    let mut cmd = Command::new("cargo");
+    cmd.args(["run"])
         .args(["-p", "perspective-bootstrap"])
         .args(["--target", env!("TARGET")])
-        .args(["--"])
-        .args(debug_flags)
-        .args([outpath])
-        .execute();
+        .args(["--"]);
+
+    if is_release {
+        cmd.args(["--release"]);
+    }
+
+    cmd.args([outpath]).execute();
 }
 
 fn main() {

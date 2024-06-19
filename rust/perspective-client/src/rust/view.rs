@@ -279,7 +279,7 @@ impl View {
     pub async fn on_update<T, U>(&self, on_update: T, options: OnUpdateOptions) -> ClientResult<u32>
     where
         T: Fn(ViewOnUpdateResp) -> U + Send + Sync + 'static,
-        U: Future<Output = ()> + Send + 'static,
+        U: Future<Output = ()> + Send + Sync + 'static,
     {
         let on_update = Arc::new(on_update);
         let callback = move |client_resp| {

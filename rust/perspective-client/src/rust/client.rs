@@ -43,7 +43,7 @@ impl GetFeaturesResp {
 }
 
 type BoxFn<I, O> = Box<dyn Fn(I) -> O + Send + Sync + 'static>;
-type PinBoxFut<O> = Pin<Box<dyn Future<Output = O> + Send + 'static>>;
+type PinBoxFut<O> = Pin<Box<dyn Future<Output = O> + Send + Sync + 'static>>;
 
 type Subscriptions<C> = Arc<RwLock<HashMap<u32, C>>>;
 type OnceCallback = Box<dyn FnOnce(ClientResp) -> ClientResult<()> + Send + Sync + 'static>;
@@ -74,7 +74,7 @@ impl Client {
     pub fn new<T, U>(send_request: T) -> Self
     where
         T: Fn(&Client, &[u8]) -> U + Send + Sync + 'static,
-        U: Future<Output = ClientResult<()>> + Send + 'static,
+        U: Future<Output = ClientResult<()>> + Send + Sync + 'static,
     {
         let send: SendCallback = Arc::new(move |client, req| {
             let mut bytes: Vec<u8> = Vec::new();
@@ -154,7 +154,7 @@ impl Client {
             .unwrap()
             .insert(msg.msg_id, on_update);
 
-        tracing::info!("SEND {}", msg);
+        tracing::error!("SEND {:?}", msg);
         (self.send)(self, msg).await
     }
 
@@ -181,7 +181,7 @@ impl Client {
             .unwrap()
             .insert(msg.msg_id, callback);
 
-        tracing::info!("SEND {}", msg);
+        tracing::error!("SEND {:?}", msg);
         (self.send)(self, msg).await?;
         receiver
             .await

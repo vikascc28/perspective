@@ -20,8 +20,10 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
-use perspective::client::{TableData, TableInitOptions};
-use perspective::server::PerspectiveServer;
+use futures::future::select_all;
+use futures::{select, FutureExt};
+use perspective::client::{ClientError, TableData, TableInitOptions, UpdateData};
+use perspective::server::Server;
 use tower_http::trace::TraceLayer;
 
 fn init_tracing() {
@@ -37,7 +39,7 @@ fn init_tracing() {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     init_tracing();
-    let server = PerspectiveServer::new();
+    let server = Server::default();
     let client = perspective::create_local_client(&server).await?;
 
     const FILENAME: &str = "../../node_modules/superstore-arrow/superstore.lz4.arrow";
@@ -47,10 +49,13 @@ async fn main() -> anyhow::Result<()> {
     f.read_to_end(&mut feather).expect("buffer overflow");
 
     let _table = client
-        .table(TableData::Arrow(feather), TableInitOptions {
-            name: Some("superstore".to_owned()),
-            ..TableInitOptions::default()
-        })
+        .table(
+            TableData::Update(UpdateData::Arrow(feather.into())),
+            TableInitOptions {
+                name: Some("superstore".to_owned()),
+                ..TableInitOptions::default()
+            },
+        )
         .await?;
 
     let app = Router::new()
@@ -67,32 +72,38 @@ async fn main() -> anyhow::Result<()> {
 
 async fn websocket_handshake(
     ws: WebSocketUpgrade,
-    State(server): State<PerspectiveServer>,
+    State(server): State<Server<axum::Error>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     tracing::info!("{addr} Connected.");
     ws.on_upgrade(move |socket| websocket_session(server, socket, addr))
 }
 
-async fn websocket_session(server: PerspectiveServer, mut socket: WebSocket, addr: SocketAddr) {
-    while let Some(msg) = socket.recv().await {
-        if let Ok(Message::Binary(x)) = msg {
-            for (_client_id, resp) in server.handle_request(0, &x) {
-                if let Err(e) = socket.send(Message::Binary(resp)).await {
-                    tracing::error!("{addr} unexpected error {e:?}");
-                    return;
-                }
-            }
+async fn websocket_session(server: Server<axum::Error>, mut socket: WebSocket, addr: SocketAddr) {
+    let (send, mut recv) = tokio::sync::mpsc::unbounded_channel::<Result<Message, axum::Error>>();
 
-            for (_client_id, resp) in server.poll() {
-                if let Err(e) = socket.send(Message::Binary(resp)).await {
-                    tracing::error!("{addr} unexpected error {e:?}");
-                    return;
-                }
+    let session = server
+        .new_session(move |resp| {
+            let send = send.clone();
+            let resp = resp.to_vec();
+            async move {
+                send.send(Ok(Message::Binary(resp)));
+                Ok(())
+                //     tracing::error!("{addr} unexpected error {e:?}");
+                //     return;
+                // }
+
+                // Ok
             }
+        })
+        .await;
+
+    while let (Some(msg), ..) = select_all([socket.recv().boxed(), recv.recv().boxed()]).await {
+        if let Ok(Message::Binary(x)) = msg {
+            session.handle_request(&x).await;
+            session.poll().await;
         } else {
             tracing::error!("{addr} Unexpected msg {msg:?}");
-            tracing::debug!("{addr} Unexpected msg {msg:?}");
         }
     }
 

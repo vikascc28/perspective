@@ -18,10 +18,8 @@ import sh from "./sh.mjs";
 import * as url from "url";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url)).slice(0, -1);
+const pkg = JSON.parse(fs.readFileSync(`${__dirname}/../../package.json`));
 
-const pkg = JSON.parse(fs.readFileSync("../../package.json"));
-
-// console.log(pkg);
 const emscripten = pkg.emscripten;
 
 dotenv.config({

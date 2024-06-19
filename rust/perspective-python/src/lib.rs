@@ -10,15 +10,11 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-#![feature(if_let_guard)]
-#![feature(lazy_cell)]
-
 mod client;
 mod server;
 
 use client::*;
 use pyo3::prelude::*;
-// use pyo3_asyncio::tokio::re_exports::runtime::Builder;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
@@ -42,15 +38,6 @@ fn init_tracing() {
 #[pymodule]
 fn perspective(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     init_tracing();
-    // let mut builder = Builder::new_multi_thread();
-    // if let Some(threads) = std::env::var("PSP_PY_WORKER_THREADS")
-    //     .ok()
-    //     .and_then(|v| v.parse().ok())
-    // {
-    //     builder.worker_threads(threads);
-    // }
-    // builder.enable_all();
-    // pyo3_asyncio::tokio::init(builder);
     // m.add_class::<client_async::PyAsyncClient>()?;
     m.add_class::<client_sync::PySyncClient>()?;
     // m.add_class::<client_async::PyAsyncTable>()?;

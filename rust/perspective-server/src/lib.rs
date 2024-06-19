@@ -7,7 +7,7 @@
 // ┃ Copyright (c) 2017, the Perspective Authors.                              ┃
 // ┃ ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ┃
 // ┃ This file is part of the Perspective library, distributed under the terms ┃
-// ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE━2.0). ┃
+// ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 //! This crate contains the server/engine components of the
@@ -53,6 +53,8 @@
 //!   repo source tree.
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use async_lock::RwLock;
@@ -60,12 +62,17 @@ use cxx::UniquePtr;
 
 mod ffi;
 
-type SessionCallback<E = ()> = Arc<dyn Fn(&[u8]) -> Result<(), E> + 'static + Sync + Send>;
+type SessionCallback<E> = Arc<
+    dyn Fn(&[u8]) -> Pin<Box<dyn Future<Output = Result<(), E>> + 'static + Sync + Send>>
+        + 'static
+        + Sync
+        + Send,
+>;
 
 /// An instance of a Perspective server. Each [`Server`] instance is separate,
 /// and does not share [`perspective_client::Table`] (or other) data with other
 /// [`Server`]s.
-pub struct Server<E = ()> {
+pub struct Server<E> {
     server: Arc<UniquePtr<ffi::ProtoApiServer>>,
     callbacks: Arc<RwLock<HashMap<u32, SessionCallback<E>>>>,
 }
@@ -100,23 +107,25 @@ impl<E> Server<E> {
     ///   [`Session`]). The response itself should be passed to
     ///   [`Client::handle_response`], which may-or-may-not be in the same
     ///   process or host language.
-    pub async fn new_session<F>(&self, send_response: F) -> Session<E>
+    pub async fn new_session<F, G>(&self, send_response: F) -> Session<E>
     where
-        F: Fn(&[u8]) -> Result<(), E> + 'static + Sync + Send,
+        F: Fn(&[u8]) -> G + 'static + Sync + Send,
+        G: Future<Output = Result<(), E>> + 'static + Sync + Send,
     {
         let id = ffi::new_session(&self.server);
         let server = self.clone();
         self.callbacks
             .write()
             .await
-            .insert(id, Arc::new(send_response));
+            .insert(id, Arc::new(move |resp| Box::pin(send_response(resp))));
+
         Session { id, server }
     }
 
     async fn handle_request(&self, client_id: u32, val: &[u8]) -> Result<(), E> {
         for response in ffi::handle_request(&self.server, client_id, val).0 {
             if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
-                f(&response.resp)?
+                f(&response.resp).await?
             }
         }
 
@@ -126,7 +135,7 @@ impl<E> Server<E> {
     async fn poll(&self) -> Result<(), E> {
         for response in ffi::poll(&self.server).0 {
             if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
-                f(&response.resp)?
+                f(&response.resp).await?
             }
         }
 
@@ -141,6 +150,17 @@ impl<E> Server<E> {
 pub struct Session<E> {
     id: u32,
     server: Server<E>,
+}
+
+/// This needs a manual implementation because `derive` adds the bounds
+/// `E: Clone`, which is unnecessary.
+impl<E> Clone for Session<E> {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            server: self.server.clone(),
+        }
+    }
 }
 
 impl<E> Session<E> {
