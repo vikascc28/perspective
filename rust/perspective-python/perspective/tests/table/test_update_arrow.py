@@ -490,7 +490,7 @@ class TestUpdateArrow(object):
 
         tbl.update(arrow)
 
-        assert tbl.view().to_columns()["a"] == [int(datetime(2019, 2, i).timestamp() * 1000) for i in range(1, 11)]
+        assert tbl.view().to_columns()["a"] == [util.to_timestamp(datetime(2019, 2, i)) for i in range(1, 11)]
 
     def test_update_arrow_update_date_schema_with_date64(self, util):
         array = [date(2019, 2, i) for i in range(1, 11)]
@@ -504,7 +504,7 @@ class TestUpdateArrow(object):
 
         tbl.update(arrow)
 
-        assert tbl.view().to_columns()["a"] == [int(datetime(2019, 2, i).timestamp() * 1000) for i in range(1, 11)]
+        assert tbl.view().to_columns()["a"] == [util.to_timestamp(datetime(2019, 2, i)) for i in range(1, 11)]
 
     def test_update_arrow_update_datetime_schema_with_timestamp(self, util):
         data = [
@@ -536,10 +536,10 @@ class TestUpdateArrow(object):
         tbl.update(arrow_data)
         assert tbl.size() == 10
         assert tbl.view().to_columns() == {
-            "a": [int(d.timestamp() * 1000) for d in data[0]],
-            "b": [int(d.timestamp() * 1000) for d in data[1]],
-            "c": [int(d.timestamp() * 1000) for d in data[2]],
-            "d": [int(d.timestamp() * 1000) for d in data[3]],
+            "a": [util.to_timestamp(d) for d in data[0]],
+            "b": [util.to_timestamp(d) for d in data[1]],
+            "c": [util.to_timestamp(d) for d in data[2]],
+            "d": [util.to_timestamp(d) for d in data[3]],
         }
 
     # streams
@@ -604,7 +604,7 @@ class TestUpdateArrow(object):
         tbl.update(arrow_data)
         assert tbl.size() == 10
         assert tbl.view().to_columns() == {
-            "a": [int(datetime(2019, 2, i).timestamp() * 1000) for i in range(1, 11)]
+            "a": [util.to_timestamp(datetime(2019, 2, i)) for i in range(1, 11)]
         }
 
     def test_update_arrow_updates_timestamp_all_formats_stream(self, util):
@@ -628,10 +628,10 @@ class TestUpdateArrow(object):
         tbl.update(arrow_data)
         assert tbl.size() == 10
         assert tbl.view().to_columns() == {
-            "a": [int(d.timestamp() * 1000) for d in data[0]],
-            "b": [int(d.timestamp() * 1000) for d in data[1]],
-            "c": [int(d.timestamp() * 1000) for d in data[2]],
-            "d": [int(d.timestamp() * 1000) for d in data[3]],
+            "a": [util.to_timestamp(d) for d in data[0]],
+            "b": [util.to_timestamp(d) for d in data[1]],
+            "c": [util.to_timestamp(d) for d in data[2]],
+            "d": [util.to_timestamp(d) for d in data[3]],
         }
 
     def test_update_arrow_updates_string_stream(self, util):
@@ -770,7 +770,7 @@ class TestUpdateArrow(object):
         tbl.update(arrow_data)
         assert tbl.size() == 20
         assert tbl.view().to_columns() == {
-            "a": [int(d.timestamp() * 1000) for d in out_data + out_data]
+            "a": [util.to_timestamp(d) for d in out_data + out_data]
         }
 
     def test_update_arrow_updates_append_date64_stream(self, util):
@@ -781,7 +781,7 @@ class TestUpdateArrow(object):
         tbl.update(arrow_data)
         assert tbl.size() == 20
         assert tbl.view().to_columns() == {
-            "a": [int(d.timestamp() * 1000) for d in out_data + out_data]
+            "a": [util.to_timestamp(d) for d in out_data + out_data]
         }
 
     def test_update_arrow_updates_append_timestamp_all_formats_stream(self, util):
@@ -805,10 +805,10 @@ class TestUpdateArrow(object):
         tbl.update(arrow_data)
         assert tbl.size() == 20
         assert tbl.view().to_columns() == {
-            "a": [int(d.timestamp() * 1000) for d in data[0] + data[0]],
-            "b": [int(d.timestamp() * 1000) for d in data[1] + data[1]],
-            "c": [int(d.timestamp() * 1000) for d in data[2] + data[2]],
-            "d": [int(d.timestamp() * 1000) for d in data[3] + data[3]],
+            "a": [util.to_timestamp(d) for d in data[0] + data[0]],
+            "b": [util.to_timestamp(d) for d in data[1] + data[1]],
+            "c": [util.to_timestamp(d) for d in data[2] + data[2]],
+            "d": [util.to_timestamp(d) for d in data[3] + data[3]],
         }
 
     def test_update_arrow_updates_append_string_stream(self, util):

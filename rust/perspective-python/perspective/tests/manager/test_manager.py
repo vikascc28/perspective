@@ -610,7 +610,7 @@ class TestPerspectiveManager(object):
         manager._process(to_dict_message, handle_to_dict)
         assert s.get() is True
 
-    def test_manager_to_dict_unix_timestamps_from_datetime(self, sentinel):
+    def test_manager_to_dict_unix_timestamps_from_datetime(self, sentinel, util):
         """The conversion from `datetime` to a Unix timestamp should not
         alter the timestamp in any way if both are in local time."""
         s = sentinel(False)
@@ -628,7 +628,7 @@ class TestPerspectiveManager(object):
             # convert back
             ts = datetime.fromtimestamp(message["data"]["a"][0] / 1000)
 
-            assert ts == int(datetime(2020, 1, 31, 23, 59).timestamp() * 1000)
+            assert ts == util.to_timestamp(datetime(2020, 1, 31, 23, 59))
 
         message = {"id": 1, "table_name": "table1", "view_name": "view1", "cmd": "view"}
         manager = PerspectiveManager()

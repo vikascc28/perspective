@@ -20,7 +20,11 @@ class TestDelete(object):
 
     def test_table_delete(self):
         process = psutil.Process(os.getpid())
+        data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
+        tbl = Table(data)
+        tbl.delete()
         mem = process.memory_info().rss
+
         for x in range(10000):
             data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
             tbl = Table(data)

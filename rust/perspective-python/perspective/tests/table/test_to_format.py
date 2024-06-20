@@ -44,18 +44,18 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.to_records() == data
 
-    def test_to_records_date(self):
+    def test_to_records_date(self, util):
         today = date.today()
         dt = datetime(today.year, today.month, today.day)
         data = [{"a": today, "b": "string2"}, {"a": today, "b": "string4"}]
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": dt.timestamp() * 1000, "b": "string2"},
-            {"a": dt.timestamp() * 1000, "b": "string4"},
+            {"a": util.to_timestamp(dt), "b": "string2"},
+            {"a": util.to_timestamp(dt), "b": "string4"},
         ]
 
-    def test_to_records_date_no_dst(self):
+    def test_to_records_date_no_dst(self, util):
         # make sure that DST does not affect the way we read dates - if tm_dst in `t_date::get_tm()` isn't set to -1, it could reverse 1hr by assuming DST is not in effect.
         today = date.today()
         dt = datetime(today.year, today.month, today.day)
@@ -63,11 +63,11 @@ class TestToFormat(object):
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": dt.timestamp() * 1000, "b": "string2"},
-            {"a": dt.timestamp() * 1000, "b": "string4"},
+            {"a": util.to_timestamp(dt), "b": "string2"},
+            {"a": util.to_timestamp(dt), "b": "string4"},
         ]
 
-    def test_to_records_date_str(self):
+    def test_to_records_date_str(self, util):
         data = [
             {"a": "03/11/2019", "b": "string2"},
             {"a": "03/12/2019", "b": "string4"},
@@ -75,21 +75,21 @@ class TestToFormat(object):
         tbl = Table(data)
         view = tbl.view()
         assert view.to_records() == [
-            {"a": datetime(2019, 3, 11).timestamp() * 1000, "b": "string2"},
-            {"a": datetime(2019, 3, 12).timestamp() * 1000, "b": "string4"},
+            {"a": util.to_timestamp(datetime(2019, 3, 11)), "b": "string2"},
+            {"a": util.to_timestamp(datetime(2019, 3, 12)), "b": "string4"},
         ]
 
-    def test_to_records_date_str_month_first(self):
+    def test_to_records_date_str_month_first(self, util):
         data = [{"a": "1/2/2019", "b": "string2"}, {"a": "3/4/2019", "b": "string4"}]
         tbl = Table(data)
         view = tbl.view()
         assert view.schema() == {"a": "date", "b": "string"}
         assert view.to_records() == [
-            {"a": datetime(2019, 1, 2).timestamp() * 1000, "b": "string2"},
-            {"a": datetime(2019, 3, 4).timestamp() * 1000, "b": "string4"},
+            {"a": util.to_timestamp(datetime(2019, 1, 2)), "b": "string2"},
+            {"a": util.to_timestamp(datetime(2019, 3, 4)), "b": "string4"},
         ]
 
-    def test_to_records_date_str_month_ymd(self):
+    def test_to_records_date_str_month_ymd(self, util):
         data = [
             {"a": "2019/01/02", "b": "string2"},
             {"a": "2019/03/04", "b": "string4"},
@@ -98,20 +98,20 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.schema() == {"a": "date", "b": "string"}
         assert view.to_records() == [
-            {"a": datetime(2019, 1, 2).timestamp() * 1000, "b": "string2"},
-            {"a": datetime(2019, 3, 4).timestamp() * 1000, "b": "string4"},
+            {"a": util.to_timestamp(datetime(2019, 1, 2)), "b": "string2"},
+            {"a": util.to_timestamp(datetime(2019, 3, 4)), "b": "string4"},
         ]
 
-    def test_to_records_datetime(self):
+    def test_to_records_datetime(self, util):
         dt = datetime(2019, 9, 10, 19, 30, 59, 515000)
         data = [{"a": dt, "b": "string2"}, {"a": dt, "b": "string4"}]
         tbl = Table(data)
         view = tbl.view()
-        data_out = [{"a": dt.timestamp() * 1000, "b": "string2"},
-                    {"a": dt.timestamp() * 1000, "b": "string4"}]
+        data_out = [{"a": util.to_timestamp(dt), "b": "string2"},
+                    {"a": util.to_timestamp(dt), "b": "string4"}]
         assert view.to_records() == data_out  # should have symmetric input/output
 
-    def test_to_records_datetime_str(self):
+    def test_to_records_datetime_str(self, util):
         data = [
             {"a": "03/11/2019 3:15PM", "b": "string2"},
             {"a": "3/11/2019 3:20PM", "b": "string4"},
@@ -120,11 +120,11 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.schema()["a"] == "datetime"
         assert view.to_records() == [
-            {"a": datetime(2019, 3, 11, 15, 15).timestamp() * 1000, "b": "string2"},
-            {"a": datetime(2019, 3, 11, 15, 20).timestamp() * 1000, "b": "string4"},
+            {"a": util.to_timestamp(datetime(2019, 3, 11, 15, 15)), "b": "string2"},
+            {"a": util.to_timestamp(datetime(2019, 3, 11, 15, 20)), "b": "string4"},
         ]
 
-    def test_to_records_datetime_str_tz(self):
+    def test_to_records_datetime_str_tz(self, util):
         dt = "2019/07/25T15:30:00+00:00"
         data = [{"a": dt}, {"a": dt}]
         tbl = Table(data)
@@ -134,18 +134,18 @@ class TestToFormat(object):
         for r in records:
             r["a"] = r["a"].replace(tzinfo=pytz.utc)
         assert records == [
-            {"a": datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc).timestamp() * 1000},
-            {"a": datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc).timestamp() * 1000},
+            {"a": (datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc))},
+            {"a": (datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc))},
         ]
 
-    def test_to_records_datetime_ms_str(self):
+    def test_to_records_datetime_ms_str(self, util):
         data = [{"a": "03/11/2019 3:15:15.999PM"}, {"a": "3/11/2019 3:15:16.001PM"}]
         tbl = Table(data)
         view = tbl.view()
         assert view.schema()["a"] == "datetime"
         assert view.to_records() == [
-            {"a": datetime(2019, 3, 11, 15, 15, 15, 999000).timestamp() * 1000},
-            {"a": datetime(2019, 3, 11, 15, 15, 16, 1000).timestamp() * 1000},
+            {"a": util.to_timestamp(datetime(2019, 3, 11, 15, 15, 15, 999000))},
+            {"a": util.to_timestamp(datetime(2019, 3, 11, 15, 15, 16, 1000))},
         ]
 
     def test_to_records_none(self):
@@ -217,20 +217,20 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.to_columns() == {"a": [1.5, 3.5], "b": [2.5, 4.5]}
 
-    def test_to_columns_date(self):
+    def test_to_columns_date(self, util):
         today = date.today()
         dt = datetime(today.year, today.month, today.day)
         data = [{"a": today, "b": 2}, {"a": today, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_columns() == {"a": [dt.timestamp() * 1000, dt.timestamp() * 1000], "b": [2, 4]}
+        assert view.to_columns() == {"a": [util.to_timestamp(dt), util.to_timestamp(dt)], "b": [2, 4]}
 
-    def test_to_columns_datetime(self):
+    def test_to_columns_datetime(self, util):
         dt = datetime(2019, 3, 15, 20, 30, 59, 6000)
         data = [{"a": dt, "b": 2}, {"a": dt, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_columns() == {"a": [dt.timestamp() * 1000, dt.timestamp() * 1000], "b": [2, 4]}
+        assert view.to_columns() == {"a": [util.to_timestamp(dt), util.to_timestamp(dt)], "b": [2, 4]}
 
     def test_to_columns_bool(self):
         data = [{"a": True, "b": False}, {"a": True, "b": False}]
@@ -978,7 +978,7 @@ class TestToFormat(object):
             {"__INDEX__": ["b"], "a": "b", "b": 4.5},
         ]
 
-    def test_to_format_explicit_index_datetime_records(self):
+    def test_to_format_explicit_index_datetime_records(self, util):
         data = [
             {"a": datetime(2019, 7, 11, 9, 0), "b": 2.5},
             {"a": datetime(2019, 7, 11, 9, 1), "b": 4.5},
@@ -987,13 +987,13 @@ class TestToFormat(object):
         view = tbl.view()
         assert view.to_records(index=True) == [
             {
-                "__INDEX__": [datetime(2019, 7, 11, 9, 0).timestamp() * 1000],
-                "a": datetime(2019, 7, 11, 9, 0).timestamp() * 1000,
+                "__INDEX__": [util.to_timestamp(datetime(2019, 7, 11, 9, 0))],
+                "a": util.to_timestamp(datetime(2019, 7, 11, 9, 0)),
                 "b": 2.5,
             },
             {
-                "__INDEX__": [datetime(2019, 7, 11, 9, 1).timestamp() * 1000],
-                "a": datetime(2019, 7, 11, 9, 1).timestamp() * 1000,
+                "__INDEX__": [util.to_timestamp(datetime(2019, 7, 11, 9, 1))],
+                "a": util.to_timestamp(datetime(2019, 7, 11, 9, 1)),
                 "b": 4.5,
             },
         ]

@@ -432,7 +432,7 @@ class TestTable:
             "b": [3, 1, 2, 4],
         }
 
-    def test_table_index_datetime_with_none(self):
+    def test_table_index_datetime_with_none(self, util):
         tbl = Table(
             {
                 "a": [
@@ -448,9 +448,9 @@ class TestTable:
         assert tbl.view().to_columns() == {
             "a": [
                 None,
-                int(datetime(2019, 7, 11, 5, 0).timestamp() * 1000),
-                int(datetime(2019, 7, 11, 12, 10).timestamp() * 1000),
-                int(datetime(2019, 7, 11, 15, 30).timestamp() * 1000),
+                util.to_timestamp(datetime(2019, 7, 11, 5, 0)),
+                util.to_timestamp(datetime(2019, 7, 11, 12, 10)),
+                util.to_timestamp(datetime(2019, 7, 11, 15, 30)),
             ],
             "b": [3, 1, 2, 4],
         }

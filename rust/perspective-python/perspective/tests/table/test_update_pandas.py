@@ -57,7 +57,7 @@ class TestUpdatePandas(object):
 
         assert tbl.view().to_columns() == {"a": ["a", "b", "c", "d", "a", "b", "c", "d"]}
 
-    def test_update_df_date(self):
+    def test_update_df_date(self, util):
         # set_global_serializer(serializer)
         tbl = Table({"a": [date(2019, 7, 11)]})
 
@@ -68,7 +68,7 @@ class TestUpdatePandas(object):
 
         tbl.update(update_data)
         assert tbl.view().to_columns() == {
-            "a": [int(d.timestamp() * 1000) for d in [datetime(2019, 7, 11), datetime(2019, 7, 12)]]
+            "a": [util.to_timestamp(d) for d in [datetime(2019, 7, 11), datetime(2019, 7, 12)]]
         }
 
     @mark.skip(reason="this test relies on a lossy conversion from datetime -> date.")
@@ -83,22 +83,22 @@ class TestUpdatePandas(object):
 
         tbl.update(update_data)
         assert tbl.view().to_columns() == {
-            "a": [datetime(2019, 7, 11).timestamp() * 1000,
-                  datetime(2019, 7, 12).timestamp() * 1000]
+            "a": [util.to_timestamp(datetime(2019, 7, 11)),
+                  util.to_timestamp(datetime(2019, 7, 12))]
         }
 
-    def test_update_df_datetime(self):
+    def test_update_df_datetime(self, util):
         tbl = Table({"a": [datetime(2019, 7, 11, 11, 0)]})
 
         update_data = pd.DataFrame({"a": [datetime(2019, 7, 12, 11, 0)]})
 
         tbl.update(update_data)
         assert tbl.view().to_columns() == {
-            "a": [datetime(2019, 7, 11, 11, 0).timestamp() * 1000,
-                  datetime(2019, 7, 12, 11, 0).timestamp() * 1000]
+            "a": [util.to_timestamp(datetime(2019, 7, 11, 11, 0)),
+                  util.to_timestamp(datetime(2019, 7, 12, 11, 0))]
         }
 
-    def test_update_df_datetime_timestamp_seconds(self):
+    def test_update_df_datetime_timestamp_seconds(self, util):
         tbl = Table({"a": [datetime(2019, 7, 11, 11, 0)]})
 
         update_data = pd.DataFrame(
@@ -107,8 +107,8 @@ class TestUpdatePandas(object):
 
         tbl.update(update_data)
         assert tbl.view().to_columns() == {
-            "a": [datetime(2019, 7, 11, 11, 0).timestamp() * 1000,
-                  datetime(2019, 7, 12, 11, 0).timestamp() * 1000]
+            "a": [util.to_timestamp(datetime(2019, 7, 11, 11, 0)),
+                  util.to_timestamp(datetime(2019, 7, 12, 11, 0))]
         }
 
     def test_update_df_datetime_timestamp_ms(self, util):
@@ -120,8 +120,8 @@ class TestUpdatePandas(object):
 
         tbl.update(update_data)
         assert tbl.view().to_columns() == {
-            "a": [datetime(2019, 7, 11, 11, 0).timestamp() * 1000,
-                  datetime(2019, 7, 12, 11, 0).timestamp() * 1000]
+            "a": [util.to_timestamp(datetime(2019, 7, 11, 11, 0)),
+                  util.to_timestamp(datetime(2019, 7, 12, 11, 0))]
         }
 
     def test_update_df_partial(self):
@@ -142,7 +142,7 @@ class TestUpdatePandas(object):
 
         assert tbl.view().to_columns() == {"a": [5, 6, 7, 8]}
 
-    def test_update_df_datetime_partial(self):
+    def test_update_df_datetime_partial(self, util):
         tbl = Table(
             {"a": [datetime(2019, 7, 11, 11, 0)], "b": [1]}, index="b"
         )
@@ -151,7 +151,7 @@ class TestUpdatePandas(object):
 
         tbl.update(update_data)
 
-        assert tbl.view().to_columns() == {"a": [int(datetime(2019, 7, 12, 11, 0).timestamp() * 1000)], "b": [1]}
+        assert tbl.view().to_columns() == {"a": [util.to_timestamp(datetime(2019, 7, 12, 11, 0))], "b": [1]}
 
     def test_update_df_one_col(self):
         tbl = Table({"a": [1, 2, 3, 4], "b": ["a", "b", "c", "d"]})

@@ -535,7 +535,7 @@ class TestTablePandas(object):
 
         assert table.view().to_columns()["a"] == [1, 2, 3, 4, 1, 2, 3, 4]
 
-    def test_table_pandas_update_date_schema_with_datetime(self):
+    def test_table_pandas_update_date_schema_with_datetime(self, util):
         df = pd.DataFrame({"a": np.array([date(2019, 7, 11)])})
 
         table = Table({"a": "date"})
@@ -545,10 +545,10 @@ class TestTablePandas(object):
         assert table.schema() == {"a": "date"}
 
         assert table.view().to_columns() == {
-            "a": [int(datetime(2019, 7, 11).timestamp() * 1000)]
+            "a": [util.to_timestamp(datetime(2019, 7, 11))]
         }
 
-    def test_table_pandas_update_datetime_schema_with_date(self):
+    def test_table_pandas_update_datetime_schema_with_date(self, util):
         df = pd.DataFrame({"a": np.array([date(2019, 7, 11)])})
 
         table = Table({"a": "datetime"})
@@ -558,7 +558,7 @@ class TestTablePandas(object):
         assert table.schema() == {"a": "datetime"}
 
         assert table.view().to_columns() == {
-            "a": [int(datetime(2019, 7, 11, 0, 0).timestamp() * 1000)]
+            "a": [util.to_timestamp(datetime(2019, 7, 11, 0, 0))]
         }
 
     # Timestamps
