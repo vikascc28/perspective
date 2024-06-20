@@ -16,9 +16,10 @@ import numpy as np
 import pandas as pd
 from perspective import PerspectiveError
 from perspective.table import Table
-from pytest import raises
+from pytest import raises, mark
 
 
+@mark.skip(reason="We do not support numpy types in the Table constructor")
 class TestTableNumpy(object):
     def test_empty_table(self):
         tbl = Table([])

@@ -229,10 +229,30 @@ fn pandas_to_arrow_bytes<'py>(
         return Err(PyValueError::new_err("Input is not a pandas.DataFrame"));
     }
 
+    let kwargs = PyDict::new_bound(py);
+    kwargs.set_item("preserve_index", true)?;
+
     let table = pyarrow
         .getattr("Table")?
-        .call_method1("from_pandas", (df,))?;
+        .call_method("from_pandas", (df,), Some(&kwargs))?;
 
+    let names = table.getattr("column_names")?;
+    println!("XXX: names0 {names}");
+    let names: Vec<String> = names.extract()?;
+    let names: Vec<String> = names
+        .into_iter()
+        .map(|e| {
+            if e == "__index_level_0__" {
+                "index".to_string()
+            } else {
+                e
+            }
+        })
+        .collect();
+    let names = PyList::new_bound(py, names);
+    let table = table.call_method1("rename_columns", (names,))?;
+    let ack = table.getattr("column_names")?;
+    println!("XXX: namesLAST {ack}");
     to_arrow_bytes(py, &table)
 }
 
@@ -302,6 +322,7 @@ impl PyClient {
             let input_data = if is_arrow_table(py, input.bind(py))? {
                 to_arrow_bytes(py, input.bind(py))?.to_object(py)
             } else if is_pandas_df(py, input.bind(py))? {
+                options.index = Some("index".into());
                 pandas_to_arrow_bytes(py, input.bind(py))?.to_object(py)
             } else {
                 input

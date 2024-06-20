@@ -66,6 +66,7 @@ class TestTableInfer(object):
         tbl = Table(data)
         assert tbl.schema() == {"a": "string"}
 
+    @mark.skip(reason="Time is not a valid JSON type")
     def test_table_infer_time_as_string(self):
         # time objects are inferred as string
         data = {

@@ -284,12 +284,3 @@ class PerspectiveViewer(PerspectiveTraitlets, object):
             self.table_name = None
 
         self.reset()
-
-    def __setattr__(self, name, value):
-        """Override __setattr__ in order to allow Enums to be validated
-        through Traitlets."""
-        if name in PerspectiveViewer.ENUM_VALIDATORS:
-            # call the validator and set
-            validated = PerspectiveViewer.ENUM_VALIDATORS[name](value)
-            value = validated
-        super(PerspectiveViewer, self).__setattr__(name, value)

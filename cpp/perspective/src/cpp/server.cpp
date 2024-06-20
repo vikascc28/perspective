@@ -1124,8 +1124,20 @@ ProtoServer::_handle_request(std::uint32_t client_id, const Request& req) {
         case proto::Request::kGetHostedTablesReq: {
             proto::Response resp;
             const auto& tables = resp.mutable_get_hosted_tables_resp();
+            const auto& infos = tables->mutable_table_infos();
             for (const auto& name : m_resources.get_table_ids()) {
-                tables->add_table_names(name);
+                const auto& v = infos->Add();
+
+                v->set_entity_id(name);
+                const auto tbl = m_resources.get_table(name);
+
+                if (!tbl->get_index().empty()) {
+                    v->set_index(tbl->get_index());
+                }
+
+                if (tbl->get_limit() != std::numeric_limits<int>::max()) {
+                    v->set_limit(tbl->get_limit());
+                }
             }
 
             push_resp(std::move(resp));

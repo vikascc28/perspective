@@ -211,7 +211,13 @@ message GetFeaturesResp {
 // `Client::get_hosted_tables`
 message GetHostedTablesReq {}
 message GetHostedTablesResp {
-    repeated string table_names = 1;
+    repeated HostedTable table_infos = 1;
+}
+
+message HostedTable {
+    string entity_id = 1;
+    optional string index = 2;
+    optional uint32 limit = 3;
 }
 
 // `Table::size`

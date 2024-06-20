@@ -44,6 +44,7 @@ static ALLOCATOR: talc::Talck<talc::locking::AssumeUnlockable, talc::ClaimOnOom>
     talc::Talc::new(unsafe { talc::ClaimOnOom::new(span) }).lock()
 };
 
+#[cfg(not(test))]
 #[panic_handler]
 #[no_mangle]
 pub fn panic(_info: &::core::panic::PanicInfo) -> ! {

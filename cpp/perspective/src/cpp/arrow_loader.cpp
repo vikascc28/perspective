@@ -242,7 +242,7 @@ ArrowLoader::fill_table(
         } else {
             if (!input_schema.has_column(index)) {
                 std::stringstream ss;
-                ss << "Specified indexx `" << index
+                ss << "Specified index `" << index
                    << "` is invalid as it does not appear in the Table."
                    << std::endl;
                 PSP_COMPLAIN_AND_ABORT(ss.str());

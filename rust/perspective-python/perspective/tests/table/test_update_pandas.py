@@ -133,6 +133,12 @@ class TestUpdatePandas(object):
 
         assert tbl.view().to_columns() == {"a": [5, 6, 7, 8], "b": ["a", "b", "c", "d"]}
 
+    def test_df_update_index(self):
+        tbl = Table(pd.DataFrame({"a": [1, 2, 3, 4]}))
+        update_data = pd.DataFrame({"a": [5, 6, 7, 8], "__INDEX__": [0, 1, 2, 3]})
+        tbl.update(update_data)
+        assert tbl.view().to_columns() == {"a": [5, 6, 7, 8], "index": [0,1,2,3]}
+
     def test_update_df_partial_implicit(self):
         tbl = Table({"a": [1, 2, 3, 4]})
 

@@ -25,7 +25,7 @@ use crate::proto::request::ClientReq;
 use crate::proto::response::ClientResp;
 use crate::proto::{
     ColumnType, GetFeaturesReq, GetFeaturesResp, GetHostedTablesReq, GetHostedTablesResp,
-    MakeTableReq, Request, Response, ServerSystemInfoReq,
+    HostedTable, MakeTableReq, Request, Response, ServerSystemInfoReq,
 };
 use crate::table::{SystemInfo, Table, TableInitOptions};
 use crate::table_data::{TableData, UpdateData};
@@ -268,11 +268,26 @@ impl Client {
         }
     }
 
+    async fn get_table_infos(&self) -> ClientResult<Vec<HostedTable>> {
+        let msg = Request {
+            msg_id: self.gen_id(),
+            entity_id: "".to_owned(),
+            client_req: Some(ClientReq::GetHostedTablesReq(GetHostedTablesReq {})),
+        };
+
+        match self.oneshot(&msg).await? {
+            ClientResp::GetHostedTablesResp(GetHostedTablesResp { table_infos }) => Ok(table_infos),
+            resp => Err(resp.into()),
+        }
+    }
+
     #[doc = include_str!("../../docs/client/open_table.md")]
     pub async fn open_table(&self, entity_id: String) -> ClientResult<Table> {
-        let names = self.get_hosted_table_names().await?;
-        if names.contains(&entity_id) {
-            let options = TableInitOptions::default();
+        let infos = self.get_table_infos().await?;
+        if let Some(info) = infos.into_iter().find(|i| i.entity_id == entity_id) {
+            let mut options = TableInitOptions::default();
+            options.index = info.index;
+            options.limit = info.limit;
             let client = self.clone();
             Ok(Table::new(entity_id, client, options))
         } else {
@@ -289,7 +304,9 @@ impl Client {
         };
 
         match self.oneshot(&msg).await? {
-            ClientResp::GetHostedTablesResp(GetHostedTablesResp { table_names }) => Ok(table_names),
+            ClientResp::GetHostedTablesResp(GetHostedTablesResp { table_infos }) => {
+                Ok(table_infos.into_iter().map(|i| i.entity_id).collect())
+            },
             resp => Err(resp.into()),
         }
     }

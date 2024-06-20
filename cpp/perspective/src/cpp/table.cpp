@@ -1230,11 +1230,11 @@ Table::from_rows(
     // 1.) Infer schema
     rapidjson::Document document;
     document.Parse(data.data());
-    if (document.Size() == 0) {
-        PSP_COMPLAIN_AND_ABORT("Can't create table from empty rows")
-    }
+    // if (document.Size() == 0) {
+    //     PSP_COMPLAIN_AND_ABORT("Can't create table from empty rows")
+    // }
 
-    if (!document[0].IsObject()) {
+    if (document.Size() > 0 && !document[0].IsObject()) {
         LOG_DEBUG("Received non-object " << document[0].GetType());
         // TODO Legacy error message
         PSP_COMPLAIN_AND_ABORT(
