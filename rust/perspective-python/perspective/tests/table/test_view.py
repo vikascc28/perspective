@@ -255,8 +255,8 @@ class TestView(object):
         order = ["__ROW_PATH__", "a", "b", "c", "d"]
         assert view.column_paths() == order
 
-    # XXX: TODO, how does column_paths work?!?
-    def test_view_df_aggregate_order_with_columns(self):
+    @mark.skip(reason="We no longer 1:1 replicate pd.DataFrame behavior")
+    def test_view_df_aggregate_order_with_columns_old(self):
         """If `columns` is provided, order is always guaranteed."""
         data = pd.DataFrame(
             {"a": [1, 2, 3], "b": [2, 3, 4], "c": [3, 4, 5], "d": [4, 5, 6]},
@@ -269,6 +269,21 @@ class TestView(object):
         )
 
         order = ["__ROW_PATH__", "index", "d", "a", "c", "b"]
+        assert view.column_paths() == order
+
+    def test_view_df_aggregate_order_with_columns(self):
+        """If `columns` is provided, order is always guaranteed."""
+        data = pd.DataFrame(
+            {"a": [1, 2, 3], "b": [2, 3, 4], "c": [3, 4, 5], "d": [4, 5, 6]},
+            columns=["d", "a", "c", "b"],
+        )
+        tbl = Table(data)
+        view = tbl.view(
+            group_by=["a"],
+            aggregates={"d": "avg", "c": "avg", "b": "last", "a": "last"},
+        )
+
+        order = ["__ROW_PATH__", "d", "a", "c", "b"]
         assert view.column_paths() == order
 
     def test_view_aggregates_with_no_columns(self):
