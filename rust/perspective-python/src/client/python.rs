@@ -236,10 +236,9 @@ fn pandas_to_arrow_bytes<'py>(
         .getattr("Table")?
         .call_method("from_pandas", (df,), Some(&kwargs))?;
 
-    let names = table.getattr("column_names")?;
-    println!("XXX: names0 {names}");
-    let names: Vec<String> = names.extract()?;
-    let names: Vec<String> = names
+    // rename from __index_level_0__ to index
+    let old_names: Vec<String> = table.getattr("column_names")?.extract()?;
+    let mut new_names: Vec<String> = old_names
         .into_iter()
         .map(|e| {
             if e == "__index_level_0__" {
@@ -249,11 +248,17 @@ fn pandas_to_arrow_bytes<'py>(
             }
         })
         .collect();
-    let names = PyList::new_bound(py, names);
+    let names = PyList::new_bound(py, new_names.clone());
     let table = table.call_method1("rename_columns", (names,))?;
-    let ack = table.getattr("column_names")?;
-    println!("XXX: namesLAST {ack}");
-    to_arrow_bytes(py, &table)
+    // move the index column to be the first column.
+    if new_names[new_names.len() - 1] == "index" {
+        new_names.rotate_right(1);
+        let order = PyList::new_bound(py, new_names);
+        let table = table.call_method1("select", (order,))?;
+        to_arrow_bytes(py, &table)
+    } else {
+        to_arrow_bytes(py, &table)
+    }
 }
 
 impl PyClient {

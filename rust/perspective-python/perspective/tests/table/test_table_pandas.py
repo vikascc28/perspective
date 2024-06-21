@@ -73,16 +73,16 @@ class TestTablePandas(object):
         assert tbl.size() == 10
         assert tbl.schema() == {"index": "date", "0": "float"}
         assert tbl.view().to_columns()["index"] == [
-            datetime(2000, 1, 1),
-            datetime(2000, 1, 2),
-            datetime(2000, 1, 3),
-            datetime(2000, 1, 4),
-            datetime(2000, 1, 5),
-            datetime(2000, 1, 6),
-            datetime(2000, 1, 7),
-            datetime(2000, 1, 8),
-            datetime(2000, 1, 9),
-            datetime(2000, 1, 10),
+            util.to_timestamp(datetime(2000, 1, 1)),
+            util.to_timestamp(datetime(2000, 1, 2)),
+            util.to_timestamp(datetime(2000, 1, 3)),
+            util.to_timestamp(datetime(2000, 1, 4)),
+            util.to_timestamp(datetime(2000, 1, 5)),
+            util.to_timestamp(datetime(2000, 1, 6)),
+            util.to_timestamp(datetime(2000, 1, 7)),
+            util.to_timestamp(datetime(2000, 1, 8)),
+            util.to_timestamp(datetime(2000, 1, 9)),
+            util.to_timestamp(datetime(2000, 1, 10)),
         ]
 
     def test_table_time_series(self, util):
@@ -91,16 +91,16 @@ class TestTablePandas(object):
         assert tbl.size() == 10
         assert tbl.schema() == {"index": "datetime", "0": "float"}
         assert tbl.view().to_columns()["index"] == [
-            datetime(2000, 1, 1, 0, 0, 0),
-            datetime(2000, 1, 1, 1, 0, 0),
-            datetime(2000, 1, 1, 2, 0, 0),
-            datetime(2000, 1, 1, 3, 0, 0),
-            datetime(2000, 1, 1, 4, 0, 0),
-            datetime(2000, 1, 1, 5, 0, 0),
-            datetime(2000, 1, 1, 6, 0, 0),
-            datetime(2000, 1, 1, 7, 0, 0),
-            datetime(2000, 1, 1, 8, 0, 0),
-            datetime(2000, 1, 1, 9, 0, 0),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 1, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 2, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 3, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 4, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 5, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 6, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 7, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 8, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 9, 0, 0)),
         ]
 
     def test_table_dataframe_infer_date(self, util):
@@ -117,16 +117,16 @@ class TestTablePandas(object):
         }
 
         assert tbl.view().to_columns()["index"] == [
-            datetime(2000, 1, 31),
-            datetime(2000, 2, 29),
-            datetime(2000, 3, 31),
-            datetime(2000, 4, 30),
-            datetime(2000, 5, 31),
-            datetime(2000, 6, 30),
-            datetime(2000, 7, 31),
-            datetime(2000, 8, 31),
-            datetime(2000, 9, 30),
-            datetime(2000, 10, 31),
+            util.to_timestamp(datetime(2000, 1, 31)),
+            util.to_timestamp(datetime(2000, 2, 29)),
+            util.to_timestamp(datetime(2000, 3, 31)),
+            util.to_timestamp(datetime(2000, 4, 30)),
+            util.to_timestamp(datetime(2000, 5, 31)),
+            util.to_timestamp(datetime(2000, 6, 30)),
+            util.to_timestamp(datetime(2000, 7, 31)),
+            util.to_timestamp(datetime(2000, 8, 31)),
+            util.to_timestamp(datetime(2000, 9, 30)),
+            util.to_timestamp(datetime(2000, 10, 31)),
         ]
 
     def test_table_dataframe_infer_time(self, util):
@@ -143,16 +143,16 @@ class TestTablePandas(object):
         }
 
         assert tbl.view().to_columns()["index"] == [
-            datetime(2000, 1, 1, 0, 0, 0),
-            datetime(2000, 1, 1, 1, 0, 0),
-            datetime(2000, 1, 1, 2, 0, 0),
-            datetime(2000, 1, 1, 3, 0, 0),
-            datetime(2000, 1, 1, 4, 0, 0),
-            datetime(2000, 1, 1, 5, 0, 0),
-            datetime(2000, 1, 1, 6, 0, 0),
-            datetime(2000, 1, 1, 7, 0, 0),
-            datetime(2000, 1, 1, 8, 0, 0),
-            datetime(2000, 1, 1, 9, 0, 0),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 1, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 2, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 3, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 4, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 5, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 6, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 7, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 8, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 9, 0, 0)),
         ]
 
     def test_table_dataframe_year_start_index(self, util):
@@ -169,16 +169,16 @@ class TestTablePandas(object):
         }
 
         assert tbl.view().to_columns()["index"] == [
-            datetime(2000, 1, 1, 0, 0, 0),
-            datetime(2001, 1, 1, 0, 0, 0),
-            datetime(2002, 1, 1, 0, 0, 0),
-            datetime(2003, 1, 1, 0, 0, 0),
-            datetime(2004, 1, 1, 0, 0, 0),
-            datetime(2005, 1, 1, 0, 0, 0),
-            datetime(2006, 1, 1, 0, 0, 0),
-            datetime(2007, 1, 1, 0, 0, 0),
-            datetime(2008, 1, 1, 0, 0, 0),
-            datetime(2009, 1, 1, 0, 0, 0),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2001, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2002, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2003, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2004, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2005, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2006, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2007, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2008, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2009, 1, 1, 0, 0, 0)),
         ]
 
     def test_table_dataframe_quarter_index(self, util):
@@ -195,10 +195,10 @@ class TestTablePandas(object):
         }
 
         assert tbl.view().to_columns()["index"] == [
-            datetime(2000, 3, 31, 0, 0, 0),
-            datetime(2000, 6, 30, 0, 0, 0),
-            datetime(2000, 9, 30, 0, 0, 0),
-            datetime(2000, 12, 31, 0, 0, 0),
+            util.to_timestamp(datetime(2000, 3, 31, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 6, 30, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 9, 30, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 12, 31, 0, 0, 0)),
         ]
 
     def test_table_dataframe_minute_index(self, util):
@@ -215,11 +215,11 @@ class TestTablePandas(object):
         }
 
         assert tbl.view().to_columns()["index"] == [
-            datetime(2000, 1, 1, 0, 0),
-            datetime(2000, 1, 1, 0, 1),
-            datetime(2000, 1, 1, 0, 2),
-            datetime(2000, 1, 1, 0, 3),
-            datetime(2000, 1, 1, 0, 4),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 0)),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 1)),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 2)),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 3)),
+            util.to_timestamp(datetime(2000, 1, 1, 0, 4)),
         ]
 
     def test_table_pandas_periodindex(self, util):
@@ -236,14 +236,14 @@ class TestTablePandas(object):
         }
 
         assert tbl.view().to_columns()["index"][:5] == [
-            datetime(2000, 1, 1),
-            datetime(2000, 2, 1),
-            datetime(2000, 3, 1),
-            datetime(2000, 4, 1),
-            datetime(2000, 5, 1),
+            util.to_timestamp(datetime(2000, 1, 1)),
+            util.to_timestamp(datetime(2000, 2, 1)),
+            util.to_timestamp(datetime(2000, 3, 1)),
+            util.to_timestamp(datetime(2000, 4, 1)),
+            util.to_timestamp(datetime(2000, 5, 1)),
         ]
 
-    def test_table_pandas_period(self):
+    def test_table_pandas_period(self, util):
         df = pd.DataFrame(
             {
                 "a": [
@@ -258,10 +258,10 @@ class TestTablePandas(object):
         assert tbl.size() == 4
         assert tbl.schema() == {"index": "integer", "a": "datetime"}
         assert tbl.view().to_columns()["a"] == [
-            datetime(2019, 1, 1),
-            datetime(2019, 4, 1),
-            datetime(2019, 7, 1),
-            datetime(2019, 10, 1),
+            util.to_timestamp(datetime(2019, 1, 1)),
+            util.to_timestamp(datetime(2019, 4, 1)),
+            util.to_timestamp(datetime(2019, 7, 1)),
+            util.to_timestamp(datetime(2019, 10, 1)),
         ]
 
     def test_table_pandas_from_schema_int(self):
@@ -314,22 +314,22 @@ class TestTablePandas(object):
         table.update(df)
         assert table.view().to_columns()["a"] == [None, 1.0, None, 2.0, None, 3.0, 4.0]
 
-    def test_table_pandas_from_schema_date(self):
+    def test_table_pandas_from_schema_date(self, util):
         data = [date(2019, 8, 15), None, date(2019, 8, 16)]
         df = pd.DataFrame({"a": data})
         table = Table({"a": "date"})
         table.update(df)
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 8, 15),
+            util.to_timestamp(datetime(2019, 8, 15)),
             None,
-            datetime(2019, 8, 16),
+            util.to_timestamp(datetime(2019, 8, 16)),
         ]
 
-    def test_table_pandas_from_schema_datetime(self):
+    def test_table_pandas_from_schema_datetime(self, util):
         data = [
-            datetime(2019, 7, 11, 12, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)),
             None,
-            datetime(2019, 7, 11, 13, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
         ]
         df = pd.DataFrame({"a": data})
@@ -348,9 +348,9 @@ class TestTablePandas(object):
         table = Table({"a": "datetime"})
         table.update(df)
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 7, 11, 12, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)),
             None,
-            datetime(2019, 7, 11, 13, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
         ]
 
@@ -366,9 +366,9 @@ class TestTablePandas(object):
         table = Table({"a": "datetime"})
         table.update(df)
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 7, 11, 12, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)),
             None,
-            datetime(2019, 7, 11, 13, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
         ]
 
@@ -464,19 +464,19 @@ class TestTablePandas(object):
         assert table.schema() == {"index": "integer", "a": "boolean"}
         assert table.view().to_columns()["a"] == [True, False, True, False, True, False]
 
-    def test_table_pandas_object_to_date(self):
+    def test_table_pandas_object_to_date(self, util):
         df = pd.DataFrame(
             {"a": np.array([date(2019, 7, 11), date(2019, 7, 12), None], dtype=object)}
         )
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "date"}
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 7, 11),
-            datetime(2019, 7, 12),
+            util.to_timestamp(datetime(2019, 7, 11)),
+            util.to_timestamp(datetime(2019, 7, 12)),
             None,
         ]
 
-    def test_table_pandas_object_to_datetime(self):
+    def test_table_pandas_object_to_datetime(self, util):
         df = pd.DataFrame(
             {
                 "a": np.array(
@@ -492,8 +492,8 @@ class TestTablePandas(object):
         table = Table(df)
         assert table.schema() == {"index": "integer", "a": "datetime"}
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 7, 11, 1, 2, 3),
-            datetime(2019, 7, 12, 1, 2, 3),
+            util.to_timestamp(datetime(2019, 7, 11, 1, 2, 3)),
+            util.to_timestamp(datetime(2019, 7, 12, 1, 2, 3)),
             None,
         ]
 
@@ -563,7 +563,7 @@ class TestTablePandas(object):
 
     # Timestamps
 
-    def test_table_pandas_timestamp_to_datetime(self):
+    def test_table_pandas_timestamp_to_datetime(self, util):
         data = [
             pd.Timestamp("2019-07-11 12:30:05"),
             None,
@@ -573,13 +573,13 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": data})
         table = Table(df)
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 7, 11, 12, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)),
             None,
-            datetime(2019, 7, 11, 13, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
         ]
 
-    def test_table_pandas_timestamp_explicit_dtype(self):
+    def test_table_pandas_timestamp_explicit_dtype(self, util):
         data = [
             pd.Timestamp("2019-07-11 12:30:05"),
             None,
@@ -589,13 +589,13 @@ class TestTablePandas(object):
         df = pd.DataFrame({"a": np.array(data, dtype="datetime64[ns]")})
         table = Table(df)
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 7, 11, 12, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)),
             None,
-            datetime(2019, 7, 11, 13, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
         ]
 
-    def test_table_pandas_update_datetime_with_timestamp(self):
+    def test_table_pandas_update_datetime_with_timestamp(self, util):
         data = [
             pd.Timestamp("2019-07-11 12:30:05"),
             None,
@@ -607,13 +607,13 @@ class TestTablePandas(object):
         table = Table(df)
         table.update(df2)
         assert table.view().to_columns()["a"] == [
-            datetime(2019, 7, 11, 12, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)),
             None,
-            datetime(2019, 7, 11, 13, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
-            datetime(2019, 7, 11, 12, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)),
             None,
-            datetime(2019, 7, 11, 13, 30, 5),
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
         ]
 
@@ -707,7 +707,7 @@ class TestTablePandas(object):
             "date": [None, "2019-07-11"],
         }
 
-    def test_table_read_nan_datetime_col(self):
+    def test_table_read_nan_datetime_col(self, util):
         data = pd.DataFrame(
             {
                 "str": ["abc", "def"],
@@ -724,10 +724,10 @@ class TestTablePandas(object):
         assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
-            "datetime": [None, datetime(2019, 7, 11, 11, 0)],
+            "datetime": [None, util.to_timestamp(datetime(2019, 7, 11, 11, 0))],
         }
 
-    def test_table_read_nat_datetime_col(self):
+    def test_table_read_nat_datetime_col(self, util):
         data = pd.DataFrame(
             {"str": ["abc", "def"], "datetime": ["NaT", datetime(2019, 7, 11, 11, 0)]}
         )
@@ -743,10 +743,10 @@ class TestTablePandas(object):
         assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
-            "datetime": [None, datetime(2019, 7, 11, 11, 0)],
+            "datetime": [None, util.to_timestamp(datetime(2019, 7, 11, 11, 0))],
         }
 
-    def test_table_read_nan_datetime_as_date_col(self):
+    def test_table_read_nan_datetime_as_date_col(self, util):
         data = pd.DataFrame(
             {"str": ["abc", "def"], "datetime": [float("nan"), datetime(2019, 7, 11)]}
         )
@@ -760,10 +760,10 @@ class TestTablePandas(object):
         assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
-            "datetime": [None, datetime(2019, 7, 11)],
+            "datetime": [None, util.to_timestamp(datetime(2019, 7, 11))],
         }
 
-    def test_table_read_nan_datetime_no_seconds(self):
+    def test_table_read_nan_datetime_no_seconds(self, util):
         data = pd.DataFrame(
             {
                 "str": ["abc", "def"],
@@ -780,10 +780,10 @@ class TestTablePandas(object):
         assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
-            "datetime": [None, datetime(2019, 7, 11, 11, 0)],
+            "datetime": [None, util.to_timestamp(datetime(2019, 7, 11, 11, 0))],
         }
 
-    def test_table_read_nan_datetime_milliseconds(self):
+    def test_table_read_nan_datetime_milliseconds(self, util):
         data = pd.DataFrame(
             {
                 "str": ["abc", "def"],
@@ -800,7 +800,7 @@ class TestTablePandas(object):
         assert tbl.view().to_columns() == {
             "index": [0, 1],
             "str": ["abc", "def"],
-            "datetime": [None, datetime(2019, 7, 11, 10, 30, 55)],
+            "datetime": [None, util.to_timestamp(datetime(2019, 7, 11, 10, 30, 55))],
         }
 
     def test_table_pandas_correct_csv_nan_end(self):
