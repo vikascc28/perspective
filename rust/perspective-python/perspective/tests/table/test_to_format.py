@@ -90,11 +90,12 @@ class TestToFormat(object):
         ]
 
     def test_to_records_date_str_month_ymd(self, util):
+        tbl = Table({"a": "date", "b": "string"})
         data = [
             {"a": "2019/01/02", "b": "string2"},
             {"a": "2019/03/04", "b": "string4"},
         ]
-        tbl = Table(data)
+        tbl.update(data)
         view = tbl.view()
         assert view.schema() == {"a": "date", "b": "string"}
         assert view.to_records() == [
@@ -105,7 +106,8 @@ class TestToFormat(object):
     def test_to_records_datetime(self, util):
         dt = datetime(2019, 9, 10, 19, 30, 59, 515000)
         data = [{"a": dt, "b": "string2"}, {"a": dt, "b": "string4"}]
-        tbl = Table(data)
+        tbl = Table({"a": "datetime", "b": "string"})
+        tbl.update(data)
         view = tbl.view()
         data_out = [{"a": util.to_timestamp(dt), "b": "string2"},
                     {"a": util.to_timestamp(dt), "b": "string4"}]

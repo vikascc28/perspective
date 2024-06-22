@@ -16,6 +16,7 @@
 #include "perspective/data_table.h"
 #include "perspective/raw_types.h"
 #include "perspective/schema.h"
+// #include "arrow/vendored/datetime/date.h"
 #include "rapidjson/document.h"
 #include <chrono>
 #include <ctime>
@@ -521,7 +522,9 @@ PROMOTE_IMPL(DTYPE_INT32, DTYPE_INT64, DTYPE_INT64)
 template <typename A>
 static A
 json_into(const rapidjson::Value& value) {
-    if constexpr (std::is_same_v<A, std::int32_t> || std::is_same_v<A, std::int64_t> || std::is_same_v<A, double>) {
+    if constexpr (std::is_same_v<A, std::int32_t>
+                  || std::is_same_v<A, std::int64_t>
+                  || std::is_same_v<A, double>) {
         if (value.IsInt()) {
             return value.GetInt();
         }
@@ -539,7 +542,8 @@ json_into(const rapidjson::Value& value) {
                 return std::atoi(value.GetString());
             } else if constexpr (std::is_same_v<A, std::int64_t>) {
                 return std::atoll(value.GetString());
-            } else if constexpr (std::is_same_v<A, double> || std::is_same_v<A, float>) {
+            } else if constexpr (std::is_same_v<A, double>
+                                 || std::is_same_v<A, float>) {
                 return std::atof(value.GetString());
             } else {
                 static_assert(!std::is_same_v<A, A>, "No coercion for type");
@@ -587,25 +591,30 @@ json_into(const rapidjson::Value& value) {
            << "a string";
         PSP_COMPLAIN_AND_ABORT(ss.str());
     } else if constexpr (std::is_same_v<A, t_date>) {
-        time_t tt;
+        std::tm tm;
         if (value.IsString()) {
-            tt = time_t(
-                *apachearrow::parseAsArrowTimestamp(value.GetString()) / 1000
-            );
+            if (!parse_all_date_time(tm, value.GetString())) {
+                PSP_COMPLAIN_AND_ABORT("Could not coerce to date");
+            }
         } else if (value.IsInt64()) {
-            tt = time_t(value.GetInt64() / 1000);
+            auto tt = time_t(value.GetInt64() / 1000);
+            tm = *localtime(&tt);
         } else {
             PSP_COMPLAIN_AND_ABORT("Could not coerce to date");
         }
-        tm local_tm = *localtime(&tt);
 
-        return t_date(
-            local_tm.tm_year + 1900, local_tm.tm_mon, local_tm.tm_mday
-        );
+        return t_date(tm.tm_year + 1900, tm.tm_mon, tm.tm_mday);
     } else if constexpr (std::is_same_v<A, t_time>) {
         if (value.IsString()) {
-            return t_time(*apachearrow::parseAsArrowTimestamp(value.GetString())
-            );
+            std::chrono::system_clock::time_point tp;
+            if (!parse_all_date_time(tp, value.GetString())) {
+                PSP_COMPLAIN_AND_ABORT("Could not coerce to time");
+            }
+            // TODO: This doesn't work. Need to switch it to use apache arrow's vendored date/datetime code.
+            return t_time(std::chrono::duration_cast<std::chrono::milliseconds>(
+                              tp.time_since_epoch()
+            )
+                              .count());
         }
         if (value.IsDouble()) {
             return t_time(value.GetDouble());
@@ -756,9 +765,11 @@ fill_column_json(
         case t_dtype::DTYPE_BOOL: {
             if (value.IsBool()) [[likely]] {
                 col->set_nth<bool>(i, value.GetBool());
-            } else if (value.IsString() && istrequals(value.GetString(), "true")) {
+            } else if (value.IsString()
+                       && istrequals(value.GetString(), "true")) {
                 col->set_nth<bool>(i, true);
-            } else if (value.IsString() && istrequals(value.GetString(), "false")) {
+            } else if (value.IsString()
+                       && istrequals(value.GetString(), "false")) {
                 col->set_nth<bool>(i, false);
             } else if (value.IsInt()) {
                 col->set_nth<bool>(i, value.GetInt() != 0);

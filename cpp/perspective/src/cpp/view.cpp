@@ -1854,7 +1854,7 @@ View<t_ctx1>::to_rows(
     rapidjson::Writer<rapidjson::StringBuffer> writer(s);
     writer.StartArray();
 
-    if (start_row == end_row || start_col == end_col) {
+    if (start_row == end_row || (start_col == end_col && !has_row_path)) {
         writer.EndArray();
         return s.GetString();
     }
@@ -1960,7 +1960,7 @@ View<t_ctx2>::to_rows(
     rapidjson::Writer<rapidjson::StringBuffer> writer(s);
     writer.StartArray();
 
-    if (start_row == end_row || start_col == end_col) {
+    if (start_row == end_row || (start_col == end_col && !has_row_path)) {
         writer.EndArray();
         return s.GetString();
     }
