@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use futures::Future;
+use futures::{Future, FutureExt};
 use prost::bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -279,7 +279,7 @@ impl View {
     pub async fn on_update<T, U>(&self, on_update: T, options: OnUpdateOptions) -> ClientResult<u32>
     where
         T: Fn(ViewOnUpdateResp) -> U + Send + Sync + 'static,
-        U: Future<Output = ()> + Send + Sync + 'static,
+        U: Future<Output = ()> + Send + 'static,
     {
         let on_update = Arc::new(on_update);
         let callback = move |client_resp| {
@@ -293,15 +293,14 @@ impl View {
                     other => Err(other.into()),
                 }
             }
+            .boxed()
         };
 
         let msg = self.client_message(ClientReq::ViewOnUpdateReq(ViewOnUpdateReq {
             mode: options.mode.map(|OnUpdateMode::Row| Mode::Row as i32),
         }));
 
-        self.client
-            .subscribe(&msg, callback.into_box_fn_pin_bix_fut())
-            .await?;
+        self.client.subscribe(&msg, Box::new(callback)).await?;
         Ok(msg.msg_id)
     }
 

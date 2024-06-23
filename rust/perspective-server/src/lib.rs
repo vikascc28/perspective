@@ -28,16 +28,16 @@
 //!                      :
 //!  Client 1            :   Session 1                      Server
 //! ┏━━━━━━━━━━━━━━━━━━┓ :  ┏━━━━━━━━━━━━━━━━━━┓           ┏━━━━━━━━━━━━━━━━━━┓
-//! ┃ receive_response ┃<━━━┃ on_send_response ┃<━┳━━━━━━━━┃ on_send_response ┃
-//! ┃ on_send_request  ┃━┳━>┃ handle_request   ┃━━━━━┳━━━━>┃ handle_request   ┃
+//! ┃ handle_response  ┃<━━━┃ send_response    ┃<━┳━━━━━━━━┃ send_response    ┃
+//! ┃ send_request     ┃━┳━>┃ handle_request   ┃━━━━━┳━━━━>┃ handle_request   ┃
 //! ┗━━━━━━━━━━━━━━━━━━┛ ┗━>┃ poll             ┃━━━━━━━━┳━>┃ poll             ┃
 //!                      :  ┃ session_id       ┃  ┃  ┃  ┃  ┃ generate_id      ┃
 //!                      :  ┗━━━━━━━━━━━━━━━━━━┛  ┃  ┃  ┃  ┃ cleanup_id       ┃
 //!                      :                        ┃  ┃  ┃  ┗━━━━━━━━━━━━━━━━━━┛
 //!  Client 2            :   Session 2            ┃  ┃  ┃
 //! ┏━━━━━━━━━━━━━━━━━━┓ :  ┏━━━━━━━━━━━━━━━━━━┓  ┃  ┃  ┃  
-//! ┃ receive_response ┃<━━━┃ on_send_response ┃<━┛  ┃  ┃                         
-//! ┃ on_send_request  ┃━┳━>┃ handle_request   ┃━━━━━┛  ┃                                        
+//! ┃ handle_response  ┃<━━━┃ send_response    ┃<━┛  ┃  ┃                         
+//! ┃ send_request     ┃━┳━>┃ handle_request   ┃━━━━━┛  ┃                                        
 //! ┗━━━━━━━━━━━━━━━━━━┛ ┗━>┃ poll             ┃━━━━━━━━┛
 //!                      :  ┃ session_id       ┃                                                 
 //!                      :  ┗━━━━━━━━━━━━━━━━━━┛
@@ -53,42 +53,54 @@
 //!   repo source tree.
 
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
+use std::error::Error;
 use std::sync::Arc;
 
 use async_lock::RwLock;
 use cxx::UniquePtr;
+use futures::future::BoxFuture;
+use futures::Future;
 
 mod ffi;
 
-type SessionCallback<E> = Arc<
-    dyn Fn(&[u8]) -> Pin<Box<dyn Future<Output = Result<(), E>> + 'static + Sync + Send>>
-        + 'static
-        + Sync
-        + Send,
->;
+pub type ServerError = Box<dyn Error + Send + Sync>;
+
+type SessionCallback =
+    Arc<dyn for<'a> Fn(&'a [u8]) -> BoxFuture<'a, Result<(), ServerError>> + Send + Sync>;
+
+/// Use [`SessionHandler`] to implement a callback for messages emitted from
+/// a [`Session`], to be passed to the [`Server::new_session`] constructor.
+/// Alternatively, a [`Session`] can be created from a closure instead via
+/// [`Server::new_session_with_callback`].
+///                                                                         
+/// ```text
+///                      :
+///  Client              :   Session
+/// ┏━━━━━━━━━━━━━━━━━━┓ :  ┏━━━━━━━━━━━━━━━━━━━┓
+/// ┃ handle_response  ┃<━━━┃ send_response (*) ┃
+/// ┃ ..               ┃ :  ┃ ..                ┃
+/// ┗━━━━━━━━━━━━━━━━━━┛ :  ┗━━━━━━━━━━━━━━━━━━━┛
+///                      :
+/// ```
+pub trait SessionHandler: Send + Sync {
+    /// Dispatch a message from a [`Server`] for a the [`Session`] that took
+    /// this `SessionHandler` instance as a constructor argument.
+    fn send_response<'a>(
+        &'a self,
+        msg: &'a [u8],
+    ) -> impl Future<Output = Result<(), ServerError>> + Send + 'a;
+}
 
 /// An instance of a Perspective server. Each [`Server`] instance is separate,
 /// and does not share [`perspective_client::Table`] (or other) data with other
 /// [`Server`]s.
-pub struct Server<E> {
+#[derive(Clone)]
+pub struct Server {
     server: Arc<UniquePtr<ffi::ProtoApiServer>>,
-    callbacks: Arc<RwLock<HashMap<u32, SessionCallback<E>>>>,
+    callbacks: Arc<RwLock<HashMap<u32, SessionCallback>>>,
 }
 
-/// This needs a manual implementation because `derive` adds the bounds
-/// `E: Clone`, which is unnecessary.
-impl<E> Clone for Server<E> {
-    fn clone(&self) -> Self {
-        Self {
-            server: self.server.clone(),
-            callbacks: self.callbacks.clone(),
-        }
-    }
-}
-
-impl<E> Default for Server<E> {
+impl Default for Server {
     fn default() -> Self {
         let server = Arc::new(ffi::new_proto_server());
         let callbacks = Arc::default();
@@ -96,33 +108,54 @@ impl<E> Default for Server<E> {
     }
 }
 
-impl<E> Server<E> {
-    /// Create a new [`Session`] for this [`Server`], suitable for exactly one
-    /// [`Client`] (not necessarily in this process).
+impl Server {
+    /// An alternative method for creating a new [`Session`] for this
+    /// [`Server`], from a callback closure instead of a via a trait.
+    /// See [`Server::new_session`] for details.
     ///
     /// # Arguments
     ///
-    /// - `send_response` A function invoked by the [`Server`] when a response
-    ///   message needs to be sent to the [`Client`] (via its respective
-    ///   [`Session`]). The response itself should be passed to
-    ///   [`Client::handle_response`], which may-or-may-not be in the same
-    ///   process or host language.
-    pub async fn new_session<F, G>(&self, send_response: F) -> Session<E>
+    /// - `send_response` -  A function invoked by the [`Server`] when a
+    ///   response message needs to be sent to the
+    ///   [`perspective_client::Client`].
+    pub async fn new_session_with_callback<F>(&self, send_response: F) -> Session
     where
-        F: Fn(&[u8]) -> G + 'static + Sync + Send,
-        G: Future<Output = Result<(), E>> + 'static + Sync + Send,
+        F: for<'a> Fn(&'a [u8]) -> BoxFuture<'a, Result<(), ServerError>> + 'static + Sync + Send,
     {
         let id = ffi::new_session(&self.server);
         let server = self.clone();
         self.callbacks
             .write()
             .await
-            .insert(id, Arc::new(move |resp| Box::pin(send_response(resp))));
+            .insert(id, Arc::new(send_response));
 
         Session { id, server }
     }
 
-    async fn handle_request(&self, client_id: u32, val: &[u8]) -> Result<(), E> {
+    /// Create a [`Session`] for this [`Server`], suitable for exactly one
+    /// [`perspective_client::Client`] (not necessarily in this process). A
+    /// [`Session`] represents the server-side state of a single
+    /// client-to-server connection.
+    ///
+    /// # Arguments
+    ///
+    /// - `session_handler` - An implementor of [`SessionHandler`] which will be
+    ///   invoked by the [`Server`] when a response message needs to be sent to
+    ///   the [`Client`]. The response itself should be passed to
+    ///   [`Client::handle_response`] eventually, though it may-or-may-not be in
+    ///   the same process.
+    pub async fn new_session<F>(&self, session_handler: F) -> Session
+    where
+        F: SessionHandler + 'static + Sync + Send + Clone,
+    {
+        self.new_session_with_callback(move |msg| {
+            let session_handler = session_handler.clone();
+            Box::pin(async move { session_handler.send_response(msg).await })
+        })
+        .await
+    }
+
+    async fn handle_request(&self, client_id: u32, val: &[u8]) -> Result<(), ServerError> {
         for response in ffi::handle_request(&self.server, client_id, val).0 {
             if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
                 f(&response.resp).await?
@@ -132,7 +165,7 @@ impl<E> Server<E> {
         Ok(())
     }
 
-    async fn poll(&self) -> Result<(), E> {
+    async fn poll(&self) -> Result<(), ServerError> {
         for response in ffi::poll(&self.server).0 {
             if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
                 f(&response.resp).await?
@@ -143,45 +176,58 @@ impl<E> Server<E> {
     }
 }
 
-/// The server-side representation of a connection to a [`Client`]. For each
-/// [`Client`] that wants to connect to a [`Server`], a dedicated [`Session`]
-/// must be created. The [`Session`] handles routing messages emitted by the
-/// [`Server`], as well as owning any resources the [`Client`] may request.
-pub struct Session<E> {
+/// The server-side representation of a connection to a
+/// [`perspective_client::Client`]. For each [`perspective_client::Client`] that
+/// wants to connect to a [`Server`], a dedicated [`Session`] must be created.
+/// The [`Session`] handles routing messages emitted by the [`Server`], as well
+/// as owning any resources the [`Client`] may request.
+#[derive(Clone)]
+pub struct Session {
     id: u32,
-    server: Server<E>,
+    server: Server,
 }
 
-/// This needs a manual implementation because `derive` adds the bounds
-/// `E: Clone`, which is unnecessary.
-impl<E> Clone for Session<E> {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            server: self.server.clone(),
-        }
-    }
-}
-
-impl<E> Session<E> {
+impl Session {
     /// Handle an incoming request from the [`Client`]. Calling
     /// [`Session::handle_request`] will result in the `send_response` parameter
     /// which was used to construct this [`Session`] to fire one or more times.
+    ///
+    /// ```text
+    ///                      :
+    ///  Client              :   Session
+    /// ┏━━━━━━━━━━━━━━━━━━┓ :  ┏━━━━━━━━━━━━━━━━━━━━┓
+    /// ┃ send_request     ┃━━━>┃ handle_request (*) ┃
+    /// ┃ ..               ┃ :  ┃ ..                 ┃
+    /// ┗━━━━━━━━━━━━━━━━━━┛ :  ┗━━━━━━━━━━━━━━━━━━━━┛
+    ///                      :
+    /// ```
     ///
     /// # Arguments
     ///
     /// - `request` An incoming request message, generated from a
     ///   [`Client::new`]'s `send_request` handler (which may-or-may-not be
     ///   local).
-    pub async fn handle_request(&self, request: &[u8]) -> Result<(), E> {
+    pub async fn handle_request(&self, request: &[u8]) -> Result<(), ServerError> {
         self.server.handle_request(self.id, request).await
     }
 
     /// Flush any pending messages which may have resulted from previous
     /// [`Session::handle_request`] calls. Calling [`Session::poll`] may result
-    /// in the `send_response` parameter which was used to construct this
-    /// [`Session`] to fire.
-    pub async fn poll(&self) -> Result<(), E> {
+    /// in the `send_response` parameter which was used to construct this (or
+    /// other) [`Session`] to fire. Whenever a [`Session::handle_request`]
+    /// method is invoked for a [`Server`], at least one [`Session::poll`]
+    /// should be scheduled to clear other clients message queues.
+    ///
+    /// ```text
+    ///                      :
+    ///  Client              :   Session                  Server
+    /// ┏━━━━━━━━━━━━━━━━━━┓ :  ┏━━━━━━━━━━━━━━━━━━━┓
+    /// ┃ send_request     ┃━┳━>┃ handle_request    ┃    ┏━━━━━━━━━━━━━━━━━━━┓
+    /// ┃ ..               ┃ ┗━>┃ poll (*)          ┃━━━>┃ poll (*)          ┃
+    /// ┗━━━━━━━━━━━━━━━━━━┛ :  ┃ ..                ┃    ┃ ..                ┃
+    ///                      :  ┗━━━━━━━━━━━━━━━━━━━┛    ┗━━━━━━━━━━━━━━━━━━━┛
+    /// ```
+    pub async fn poll(&self) -> Result<(), ServerError> {
         self.server.poll().await
     }
 }

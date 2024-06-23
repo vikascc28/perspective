@@ -92,6 +92,7 @@ parse_all_date_time(
         "%Y-%m-%dT%H:%M:%S",
         "%m-%d-%Y %H:%M:%S",
         "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y, %H:%M:%S %p",
         "%Y-%m-%d %H:%M:%S",
         "%Y/%m/%dT%H:%M:%S",
         "%Y/%m/%d %H:%M:%S",

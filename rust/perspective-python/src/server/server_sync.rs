@@ -12,22 +12,35 @@
 
 use std::sync::Arc;
 
-use perspective_client::clone;
-use perspective_server::{Server, Session};
+use perspective_server::{Server, Session, SessionHandler};
 use pollster::FutureExt;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyFunction};
 
 #[pyclass]
 #[derive(Clone)]
 pub struct PySyncSession {
-    session: Arc<Session<PyErr>>,
+    session: Arc<Session>,
 }
 
 #[pyclass]
 #[derive(Clone, Default)]
 pub struct PySyncServer {
-    pub server: Server<PyErr>,
+    pub server: Server,
+}
+
+#[derive(Clone)]
+struct PyConnection(Py<PyFunction>);
+
+impl SessionHandler for PyConnection {
+    async fn send_response<'a>(
+        &'a self,
+        msg: &'a [u8],
+    ) -> Result<(), perspective_server::ServerError> {
+        Python::with_gil(|py| self.0.call1(py, (PyBytes::new_bound(py, msg),)))?;
+        Ok(())
+    }
 }
 
 #[pymethods]
@@ -40,17 +53,7 @@ impl PySyncServer {
     pub fn new_session(&self, _py: Python, response_cb: Py<PyFunction>) -> PySyncSession {
         let session = self
             .server
-            .new_session(move |response| {
-                clone!(response_cb);
-                let response = response.to_vec();
-                async move {
-                    Python::with_gil(|py| {
-                        response_cb.call1(py, (PyBytes::new_bound(py, &response),))
-                    })?;
-
-                    Ok(())
-                }
-            })
+            .new_session(PyConnection(response_cb))
             .block_on();
 
         let session = Arc::new(session);
@@ -64,10 +67,16 @@ impl PySyncSession {
     pub fn handle_request(&self, _py: Python<'_>, data: Vec<u8>) -> PyResult<()> {
         // TODO: Make this return a boolean for "should_poll" to determine whether we
         // immediately schedule a poll after this request.
-        self.session.handle_request(&data).block_on()
+        self.session
+            .handle_request(&data)
+            .block_on()
+            .map_err(|e| PyValueError::new_err(format!("{}", e)))
     }
 
     pub fn poll(&self, _py: Python<'_>) -> PyResult<()> {
-        self.session.poll().block_on()
+        self.session
+            .poll()
+            .block_on()
+            .map_err(|e| PyValueError::new_err(format!("{}", e)))
     }
 }

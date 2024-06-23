@@ -10,49 +10,59 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-use std::fmt::Debug;
 use std::sync::{Arc, OnceLock};
 
 use perspective_client::*;
 use perspective_server::*;
 pub use {perspective_client as client, perspective_server as server};
 
-pub async fn create_local_client<E: Debug + 'static>(server: &Server<E>) -> ClientResult<Client> {
-    let server = server.clone();
-    let client: Arc<OnceLock<Client>> = Arc::default();
-    let session: Session<E> = server
-        .new_session({
-            let client = client.clone();
-            move |resp| {
-                tracing::error!("{}", client.get().is_some());
-                tracing::error!("resp");
-                let resp = resp.to_vec();
-                let client = client.clone();
-                async move {
-                    client.get().unwrap().handle_response(&resp).await.unwrap();
-                    Ok(())
-                }
-            }
-        })
-        .await;
+#[derive(Clone, Default)]
+struct LocalConnection {
+    client: Arc<OnceLock<Client>>,
+    session: Arc<OnceLock<Session>>,
+    server: Server,
+}
 
-    client.get_or_init(|| {
-        Client::new({
-            move |_client, req| {
-                tracing::error!("req");
-                let session = session.clone();
-                let req = req.to_vec();
-                async move {
-                    session.handle_request(&req).await.unwrap();
-                    session.poll().await.unwrap();
-                    Ok(())
-                }
-            }
-        })
-    });
+impl SessionHandler for LocalConnection {
+    async fn send_response<'a>(&'a self, msg: &'a [u8]) -> Result<(), ServerError> {
+        self.get_client().handle_response(msg).await?;
+        Ok(())
+    }
+}
 
-    tracing::error!("{}", client.get().is_some());
+impl ClientHandler for LocalConnection {
+    async fn send_request<'a>(
+        &'a self,
+        msg: &'a [u8],
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let session = self.get_session().await;
+        session.handle_request(msg).await?;
+        session.poll().await?;
+        Ok(())
+    }
+}
 
-    client.get().unwrap().init().await?;
-    Ok(client.get().unwrap().clone())
+impl LocalConnection {
+    fn get_client(&self) -> &Client {
+        self.client.get_or_init(|| Client::new(self.clone()))
+    }
+
+    async fn get_session(&self) -> &Session {
+        if self.session.get().is_none() {
+            let session = self.server.new_session(self.clone()).await;
+            self.session.get_or_init(|| session)
+        } else {
+            self.session.get().unwrap()
+        }
+    }
+}
+
+pub async fn create_local_client(server: &Server) -> ClientResult<Client> {
+    let connection = LocalConnection {
+        server: server.clone(),
+        client: Arc::default(),
+        session: Arc::default(), // ..LocalConnection::default()
+    };
+
+    Ok(connection.get_client().clone())
 }

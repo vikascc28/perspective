@@ -11,13 +11,11 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 mod clone;
-mod into_box_fn_pin_box_fut;
 mod logging;
 
 #[cfg(test)]
 mod tests;
 
-pub use into_box_fn_pin_box_fut::*;
 use thiserror::*;
 
 use crate::proto;
@@ -50,6 +48,9 @@ pub enum ClientError {
 
     #[error("Can't use both `limit` and `index` arguments")]
     BadTableOptions,
+
+    #[error("External error: {0:?}")]
+    ExternalError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 pub type ClientResult<T> = Result<T, ClientError>;

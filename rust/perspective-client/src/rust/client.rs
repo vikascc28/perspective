@@ -11,11 +11,12 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use std::collections::HashMap;
-use std::pin::Pin;
+use std::error::Error;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use async_lock::{Mutex, RwLock};
+use futures::future::BoxFuture;
 use futures::Future;
 use nanoid::*;
 use prost::Message;
@@ -43,12 +44,22 @@ impl GetFeaturesResp {
 }
 
 type BoxFn<I, O> = Box<dyn Fn(I) -> O + Send + Sync + 'static>;
-type PinBoxFut<O> = Pin<Box<dyn Future<Output = O> + Send + Sync + 'static>>;
 
 type Subscriptions<C> = Arc<RwLock<HashMap<u32, C>>>;
 type OnceCallback = Box<dyn FnOnce(ClientResp) -> ClientResult<()> + Send + Sync + 'static>;
-type SendCallback =
-    Arc<dyn Fn(&Client, &Request) -> PinBoxFut<ClientResult<()>> + Send + Sync + 'static>;
+type SendCallback = Arc<
+    dyn for<'a> Fn(&'a Request) -> BoxFuture<'a, Result<(), Box<dyn Error + Send + Sync>>>
+        + Send
+        + Sync
+        + 'static,
+>;
+
+pub trait ClientHandler: Clone + Send + Sync + 'static {
+    fn send_request<'a>(
+        &'a self,
+        msg: &'a [u8],
+    ) -> impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>> + Send;
+}
 
 #[derive(Clone)]
 #[doc = include_str!("../../docs/client.md")]
@@ -57,7 +68,7 @@ pub struct Client {
     send: SendCallback,
     id_gen: Arc<AtomicU32>,
     subscriptions_once: Subscriptions<OnceCallback>,
-    subscriptions: Subscriptions<BoxFn<ClientResp, PinBoxFut<Result<(), ClientError>>>>,
+    subscriptions: Subscriptions<BoxFn<ClientResp, BoxFuture<'static, Result<(), ClientError>>>>,
 }
 
 impl std::fmt::Debug for Client {
@@ -69,17 +80,21 @@ impl std::fmt::Debug for Client {
 }
 
 impl Client {
-    /// Create a new client instance with a closure over a
-    /// `Server::handle_request`.
-    pub fn new<T, U>(send_request: T) -> Self
+    /// Create a new client instance with a closure that handles message
+    /// dispatch. See [`Client::new`] for details.
+    pub fn new_with_callback<T>(send_request: T) -> Self
     where
-        T: Fn(&Client, &[u8]) -> U + Send + Sync + 'static,
-        U: Future<Output = ClientResult<()>> + Send + Sync + 'static,
+        T: for<'a> Fn(&'a [u8]) -> BoxFuture<'a, Result<(), Box<dyn Error + Send + Sync>>>
+            + 'static
+            + Sync
+            + Send,
     {
-        let send: SendCallback = Arc::new(move |client, req| {
+        let send_request = Arc::new(send_request);
+        let send: SendCallback = Arc::new(move |req| {
             let mut bytes: Vec<u8> = Vec::new();
             req.encode(&mut bytes).unwrap();
-            Box::pin(send_request(client, &bytes))
+            let send_request = send_request.clone();
+            Box::pin(async move { send_request(&bytes).await })
         });
 
         Client {
@@ -91,10 +106,26 @@ impl Client {
         }
     }
 
+    /// Create a new [`Client`] instance with [`ClientHandler`].
+    pub fn new<T>(client_handler: T) -> Self
+    where
+        T: ClientHandler + 'static + Sync + Send,
+    {
+        Self::new_with_callback(move |req| {
+            let client_handler = client_handler.clone();
+            Box::pin(async move { client_handler.send_request(req).await })
+        })
+    }
+
     /// Handle a message from the external message queue.
-    pub async fn handle_response(&self, msg: &[u8]) -> ClientResult<()> {
+    /// [`Client::handle_response`] is part of the low-level message-handling
+    /// API necessary to implement new transports for a [`Client`]
+    /// connection to a local-or-remote [`perspective_server::Server`], and
+    /// doesn't generally need to be called directly by "users" of a
+    /// [`Client`] once connected.
+    pub async fn handle_response<'a>(&'a self, msg: &'a [u8]) -> ClientResult<()> {
         let msg = Response::decode(msg)?;
-        tracing::info!("RECV {}", msg);
+        tracing::debug!("RECV {}", msg);
         let payload = msg.client_resp.ok_or(ClientError::Option)?;
         let mut wr = self.subscriptions_once.try_write().unwrap();
         if let Some(handler) = (*wr).remove(&msg.msg_id) {
@@ -154,21 +185,21 @@ impl Client {
             .unwrap()
             .insert(msg.msg_id, on_update);
 
-        tracing::error!("SEND {:?}", msg);
-        (self.send)(self, msg).await
+        tracing::debug!("SEND {}", msg);
+        Ok((self.send)(msg).await?)
     }
 
     pub(crate) async fn subscribe(
         &self,
         msg: &Request,
-        on_update: BoxFn<ClientResp, PinBoxFut<Result<(), ClientError>>>,
+        on_update: BoxFn<ClientResp, BoxFuture<'static, Result<(), ClientError>>>,
     ) -> ClientResult<()> {
         self.subscriptions
             .try_write()
             .unwrap()
             .insert(msg.msg_id, on_update);
-        tracing::info!("SEND {}", msg);
-        (self.send)(self, msg).await
+        tracing::debug!("SEND {}", msg);
+        Ok((self.send)(msg).await?)
     }
 
     /// Send a `ClientReq` and await both the successful completion of the
@@ -181,8 +212,8 @@ impl Client {
             .unwrap()
             .insert(msg.msg_id, callback);
 
-        tracing::error!("SEND {:?}", msg);
-        (self.send)(self, msg).await?;
+        tracing::debug!("SEND {}", msg);
+        (self.send)(msg).await?;
         receiver
             .await
             .map_err(|_| ClientError::Unknown("Internal error".to_owned()))
@@ -284,10 +315,15 @@ impl Client {
     #[doc = include_str!("../../docs/client/open_table.md")]
     pub async fn open_table(&self, entity_id: String) -> ClientResult<Table> {
         let infos = self.get_table_infos().await?;
+
+        // TODO fix this - name is repeated 2x
         if let Some(info) = infos.into_iter().find(|i| i.entity_id == entity_id) {
-            let mut options = TableInitOptions::default();
-            options.index = info.index;
-            options.limit = info.limit;
+            let options = TableInitOptions {
+                index: info.index,
+                limit: info.limit,
+                ..TableInitOptions::default()
+            };
+
             let client = self.clone();
             Ok(Table::new(entity_id, client, options))
         } else {

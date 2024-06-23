@@ -151,6 +151,11 @@ impl Table {
         self.options.limit.as_ref().map(|limit| *limit)
     }
 
+    // #[doc = include_str!("../../docs/table/get_limit.md")]
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+
     #[doc = include_str!("../../docs/table/clear.md")]
     pub async fn clear(&self) -> ClientResult<()> {
         self.replace(UpdateData::JsonRows("[]".to_owned())).await

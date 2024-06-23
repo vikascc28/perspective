@@ -17,11 +17,11 @@ use std::sync::Arc;
 
 use async_lock::RwLock;
 use futures::lock::Mutex;
+use futures::FutureExt;
 use perspective_client::proto::ViewOnUpdateResp;
 use perspective_client::{
-    assert_table_api, assert_view_api, clone, Client, ClientError, IntoBoxFnPinBoxFut,
-    OnUpdateMode, OnUpdateOptions, Table, TableData, TableInitOptions, UpdateData, UpdateOptions,
-    View, ViewWindow,
+    assert_table_api, assert_view_api, clone, Client, ClientError, OnUpdateMode, OnUpdateOptions,
+    Table, TableData, TableInitOptions, UpdateData, UpdateOptions, View, ViewWindow,
 };
 use pyo3::create_exception;
 use pyo3::exceptions::PyValueError;
@@ -263,20 +263,16 @@ fn pandas_to_arrow_bytes<'py>(
 
 impl PyClient {
     pub fn new(handle_request: Py<PyFunction>) -> Self {
-        let client = Client::new({
-            move |_client, msg| {
-                let msg = msg.to_vec();
+        let client = Client::new_with_callback({
+            move |msg| {
                 clone!(handle_request);
-                async move {
-                    // TODO this is not great error handling, would be nice if
-                    // we could tunnel errors back to the caller which sent the
-                    // message.
+                Box::pin(async move {
                     Python::with_gil(move |py| {
-                        handle_request.call1(py, (PyBytes::new_bound(py, &msg),))
-                    })
-                    .map_err(|_| ClientError::Internal("Internal Error".to_string()))?;
+                        handle_request.call1(py, (PyBytes::new_bound(py, msg),))
+                    })?;
+
                     Ok(())
-                }
+                })
             }
         });
 
@@ -652,6 +648,7 @@ impl PyView {
                     tracing::warn!("Error in on_update callback: {:?}", err);
                 }
             }
+            .boxed()
         };
 
         let mode = mode
@@ -662,7 +659,7 @@ impl PyView {
         self.view
             .lock()
             .await
-            .on_update(callback.into_box_fn_pin_bix_fut(), OnUpdateOptions { mode })
+            .on_update(Box::new(callback), OnUpdateOptions { mode })
             .await
             .into_pyerr()
     }

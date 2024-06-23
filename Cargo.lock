@@ -1955,6 +1955,7 @@ dependencies = [
  "cmake",
  "cxx",
  "cxx-build",
+ "futures",
  "num_cpus",
  "tracing",
 ]

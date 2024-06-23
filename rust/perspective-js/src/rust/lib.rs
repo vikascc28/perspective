@@ -13,7 +13,8 @@
 #![warn(
     clippy::all,
     clippy::panic_in_result_fn,
-    clippy::await_holding_refcell_ref
+    clippy::await_holding_refcell_ref,
+    unstable_features
 )]
 #![allow(non_snake_case)]
 
@@ -89,12 +90,12 @@ impl JsClient {
             send1.call1(&JsValue::UNDEFINED, &buff2)
         });
 
-        let client = Client::new(move |_client, msg| {
+        let client = Client::new_with_callback(move |msg| {
             let task = send_loop.poll(msg.to_vec());
-            async move {
+            Box::pin(async move {
                 task.await;
                 Ok(())
-            }
+            })
         });
 
         JsClient { close, client }
