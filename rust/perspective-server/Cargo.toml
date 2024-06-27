@@ -31,8 +31,10 @@ include = [
 ]
 
 [features]
-default = []
+default = ["python"]
 external-cpp = []
+wasm-exceptions = []
+python = []
 
 [build-dependencies]
 cxx-build = "1.0.115"
@@ -46,5 +48,5 @@ tracing = { version = ">=0.1.36" }
 futures = "0.3"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 path = "src/lib.rs"

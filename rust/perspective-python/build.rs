@@ -37,6 +37,7 @@ fn copy_dir_all(
 
 fn main() {
     pyo3_build_config::add_extension_module_link_args();
+
     if std::env::var("CARGO_FEATURE_EXTERNAL_CPP").is_ok() {
         println!("cargo:warning=MESSAGE Building in development mode");
         let root_dir_env = std::env::var("PSP_ROOT_DIR").expect("Must set PSP_ROOT_DIR");

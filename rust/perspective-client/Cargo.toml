@@ -34,7 +34,7 @@ default = []
 external-proto = ["protobuf-src"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 path = "src/rust/lib.rs"
 
 [build-dependencies]

@@ -37,4 +37,8 @@ from .legacy import (
 )
 from .widget import PerspectiveWidget
 from .viewer import PerspectiveViewer
-from .handlers import PerspectiveTornadoHandler
+
+try:
+    from .handlers import PerspectiveTornadoHandler
+except ImportError:
+    ...

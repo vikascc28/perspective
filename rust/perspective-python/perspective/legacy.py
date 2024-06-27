@@ -26,10 +26,10 @@ def default_loop_cb(fn, *args, **kwargs):
 def create_sync_client(cb=default_loop_cb):
     def handle_sync_client(bytes):
         sync_session.handle_request(bytes)
-        default_loop_cb(lambda: sync_session.poll())
+        cb(lambda: sync_session.poll())
 
     def handle_new_session(bytes):
-        default_loop_cb(lambda: sync_client.handle_response(bytes))
+        cb(lambda: sync_client.handle_response(bytes))
 
     sync_server = PySyncServer()
     sync_session = sync_server.new_session(handle_new_session)
