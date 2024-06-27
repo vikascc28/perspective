@@ -60,13 +60,11 @@ fn cmake_build() -> Result<(), std::io::Error> {
         .contains("wasm32")
     {
         dst.define("PSP_WASM_BUILD", "1");
-        if std::env::var("CARGO_FEATURE_PYTHON").is_err() {
-            dst.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
-        }
     } else {
         dst.define("PSP_WASM_BUILD", "0");
     }
-    if std::env::var("CARGO_FEATURE_PYTHON").is_err() {
+    if std::env::var("CARGO_FEATURE_PYTHON").is_ok() {
+        dst.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
         dst.define("PSP_PYTHON_BUILD", "1");
     }
     if std::env::var("CARGO_FEATURE_EXTERNAL_CPP").is_err() {
