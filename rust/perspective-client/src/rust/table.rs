@@ -11,6 +11,7 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use nanoid::*;
 use serde::{Deserialize, Serialize};
@@ -56,26 +57,46 @@ pub struct TableInitOptions {
     pub limit: Option<u32>,
 }
 
-impl TryFrom<TableInitOptions> for MakeTableOptions {
+impl TableInitOptions {
+    pub fn set_name<D: Display>(&mut self, name: D) {
+        self.name = Some(format!("{}", name))
+    }
+}
+
+impl TryFrom<TableOptions> for MakeTableOptions {
     type Error = ClientError;
 
-    fn try_from(value: TableInitOptions) -> Result<Self, Self::Error> {
+    fn try_from(value: TableOptions) -> Result<Self, Self::Error> {
         Ok(MakeTableOptions {
             make_table_type: match value {
-                TableInitOptions {
+                TableOptions {
                     index: Some(_),
                     limit: Some(_),
-                    ..
                 } => Err(ClientError::BadTableOptions)?,
-                TableInitOptions {
+                TableOptions {
                     index: Some(index), ..
                 } => Some(MakeTableType::MakeIndexTable(index)),
-                TableInitOptions {
+                TableOptions {
                     limit: Some(limit), ..
                 } => Some(MakeTableType::MakeLimitTable(limit)),
                 _ => None,
             },
         })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct TableOptions {
+    pub index: Option<String>,
+    pub limit: Option<u32>,
+}
+
+impl From<TableInitOptions> for TableOptions {
+    fn from(value: TableInitOptions) -> Self {
+        TableOptions {
+            index: value.index,
+            limit: value.limit,
+        }
     }
 }
 
@@ -97,7 +118,7 @@ pub struct ValidateExpressionsData {
 pub struct Table {
     name: String,
     client: Client,
-    options: TableInitOptions,
+    options: TableOptions,
     /// If this table is constructed from a View, the view's on_update callback
     /// is wired into this table. So, we store the token to clean it up properly
     /// on destruction.
@@ -120,7 +141,7 @@ impl From<proto::ServerSystemInfoResp> for SystemInfo {
 assert_table_api!(Table);
 
 impl Table {
-    pub(crate) fn new(name: String, client: Client, options: TableInitOptions) -> Self {
+    pub(crate) fn new(name: String, client: Client, options: TableOptions) -> Self {
         Table {
             name,
             client,

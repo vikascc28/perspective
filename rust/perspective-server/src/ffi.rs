@@ -27,6 +27,7 @@ mod ffi_internal {
         type ProtoApiServer;
         fn new_proto_server() -> UniquePtr<ProtoApiServer>;
         fn new_session(server: &ProtoApiServer) -> u32;
+        fn close_session(server: &ProtoApiServer, client_id: u32);
         fn handle_request(
             server: &ProtoApiServer,
             client_id: u32,

@@ -45,7 +45,7 @@ pub(crate) impl TableData {
     fn from_js_value(value: &JsValue) -> ApiResult<TableData> {
         let err_fn = || JsValue::from(format!("Failed to construct Table {:?}", value));
         if let Some(result) = UpdateData::from_js_value_partial(value)? {
-            Ok(TableData::Update(result))
+            Ok(result.into())
         } else if value.is_instance_of::<Object>() && Reflect::has(value, &"__get_model".into())? {
             let val = Reflect::get(value, &"__get_model".into())?
                 .dyn_into::<Function>()?
@@ -71,9 +71,8 @@ pub(crate) impl TableData {
             if all_strings() {
                 Ok(TableData::Schema(Vec::from_js_value(value)?))
             } else if all_arrays() {
-                Ok(TableData::Update(UpdateData::JsonColumns(
-                    JSON::stringify(value)?.as_string().into_apierror()?,
-                )))
+                let json = JSON::stringify(value)?.as_string().into_apierror()?;
+                Ok(UpdateData::JsonColumns(json).into())
             } else {
                 Err(err_fn().into())
             }

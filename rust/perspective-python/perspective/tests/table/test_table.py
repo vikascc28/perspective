@@ -68,7 +68,10 @@ class TestTable:
         tbl = Table("string,integer\n,1\n,2\nabc,3")
         assert tbl.schema() == {"string": "string", "integer": "integer"}
         assert tbl.size() == 3
-        assert tbl.view().to_columns() == {"string": ["", "", "abc"], "integer": [1, 2, 3]}
+        assert tbl.view().to_columns() == {
+            "string": ["", "", "abc"],
+            "integer": [1, 2, 3],
+        }
 
     def test_table_correct_csv_nan_intermittent(self):
         tbl = Table("string,float\nabc,\n,2.5\nghi,")
@@ -180,7 +183,14 @@ class TestTable:
     # schema
 
     def test_table_schema(self):
-        data = {"a": "integer", "b": "float", "c": "string", "d": "boolean", "e": "date", "f": "datetime"}
+        data = {
+            "a": "integer",
+            "b": "float",
+            "c": "string",
+            "d": "boolean",
+            "e": "date",
+            "f": "datetime",
+        }
 
         tbl = Table(data)
 
@@ -236,7 +246,14 @@ class TestTable:
         }
 
     def test_table_mixed_schema(self):
-        data = {"a": "integer", "b": "float", "c": "string", "d": "boolean", "e": "date", "f": "datetime"}
+        data = {
+            "a": "integer",
+            "b": "float",
+            "c": "string",
+            "d": "boolean",
+            "e": "date",
+            "f": "datetime",
+        }
 
         tbl = Table(data)
 
@@ -250,7 +267,14 @@ class TestTable:
         }
 
     def test_table_output_string_schema(self):
-        data = {"a": "integer", "b": "float", "c": "string", "d": "boolean", "e": "date", "f": "datetime"}
+        data = {
+            "a": "integer",
+            "b": "float",
+            "c": "string",
+            "d": "boolean",
+            "e": "date",
+            "f": "datetime",
+        }
 
         tbl = Table(data)
 
@@ -545,13 +569,13 @@ class TestTable:
 
         s = sentinel(False)
 
-        def updater(_delta):
+        def updater(port_id, _delta):
             s.set(True)
 
         view.on_update(updater)
         tbl.replace(data2)
         tbl.size()
-        assert s.get() == True
+        assert s.get()
 
     def test_table_replace_should_fire_on_update_with_delta(self, sentinel):
         data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
@@ -561,7 +585,7 @@ class TestTable:
 
         s = sentinel(False)
 
-        def updater(delta):
+        def updater(port_id, delta):
             # assert port_id == 0
             table2 = Table(delta)
             assert table2.view().to_records() == data2
@@ -578,6 +602,8 @@ class TestTable:
         assert tbl.size() == 2
         assert tbl.schema() == {"a": "float", "b": "float"}
 
+
 if __name__ == "__main__":
     import pytest
+
     pytest.main(["-vv", "-s", __file__])

@@ -10,57 +10,54 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-#pragma once
+// use tokio::sync::Mutex;
+use std::error::Error;
+use std::sync::Arc;
 
-#include <perspective/binding.h>
+use perspective::LocalClient;
+use perspective_client::{OnUpdateOptions, TableInitOptions, UpdateData, UpdateOptions};
+use tokio::sync::Mutex;
 
-#ifdef PSP_ENABLE_WASM
-#include <emscripten/val.h>
-// for WASM builds, typedef all data structures for binding languages to
-// emscripten::val
-typedef t_val t_data_accessor;
-typedef emscripten::val t_val;
-#endif
+#[tokio::test]
+async fn test_two_sync_clients_receive_messages_on_update() -> Result<(), Box<dyn Error>> {
+    let server = perspective::server::Server::default();
+    let client1 = LocalClient::new(&server);
+    let client2 = LocalClient::new(&server);
 
-namespace perspective {
-namespace binding {
-    /**
-     * @brief Helper function for creating `std::vector`s for use in Javascript.
-     *
-     * @tparam T
-     * @return std::vector<T>
-     */
-    template <typename T>
-    std::vector<T> make_vector();
+    let table = client1
+        .table(
+            UpdateData::Csv("x,y\n1,2\n3,4".to_owned()).into(),
+            TableInitOptions {
+                name: Some("Table1".to_owned()),
+                index: None,
+                limit: None,
+            },
+        )
+        .await?;
 
-    /**
-     * @brief namespace `js_typed_array` contains utility bindings that
-     * initialize typed arrays using Emscripten.
-     *
-     */
-    namespace js_typed_array {} // namespace js_typed_array
+    let table2 = client2.open_table("Table1".to_owned()).await?;
+    let view = table2.view(None).await?;
+    let result = Arc::new(Mutex::new(false));
+    let _sub = view
+        .on_update(
+            {
+                let result = result.clone();
+                move |_| {
+                    let result = result.clone();
+                    async move { *result.lock().await = true }
+                }
+            },
+            OnUpdateOptions::default(),
+        )
+        .await?;
 
-    /**
-     * @brief Given a vector of scalar data objects, write it into a typed
-     * array.
-     *
-     * @tparam T
-     * @tparam T
-     * @tparam T
-     */
-    template <typename T, typename F = T, typename O = T>
-    t_val col_to_typed_array(const std::vector<t_tscalar>& data);
+    table
+        .update(
+            UpdateData::Csv("x,y\n5,6".to_owned()),
+            UpdateOptions::default(),
+        )
+        .await?;
 
-    // Date parsing
-    t_date jsdate_to_t_date(t_val date);
-    t_val t_date_to_jsdate(t_date date);
-
-    template <>
-    t_val scalar_to(const t_tscalar& scalar);
-    t_val scalar_to_val(
-        const t_tscalar& scalar,
-        bool cast_double = false,
-        bool cast_string = false
-    );
-} // namespace binding
-} // namespace perspective
+    assert!(*result.lock().await);
+    Ok(())
+}

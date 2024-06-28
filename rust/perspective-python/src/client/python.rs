@@ -16,7 +16,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use async_lock::RwLock;
-use futures::lock::Mutex;
 use futures::FutureExt;
 use perspective_client::proto::ViewOnUpdateResp;
 use perspective_client::{
@@ -104,9 +103,7 @@ impl TableData {
         } else if let Ok(pylist) = input.downcast_bound::<PyList>(py) {
             let json_module = PyModule::import_bound(py, "json")?;
             let string = json_module.call_method("dumps", (pylist,), None)?;
-            Ok(TableData::Update(UpdateData::JsonRows(
-                string.extract::<String>()?,
-            )))
+            Ok(UpdateData::JsonRows(string.extract::<String>()?).into())
         } else if let Ok(pydict) = input.downcast_bound::<PyDict>(py) {
             let first_key = pydict.keys().get_item(0)?;
             let first_item = pydict
@@ -115,9 +112,7 @@ impl TableData {
             if first_item.downcast::<PyList>().is_ok() {
                 let json_module = PyModule::import_bound(py, "json")?;
                 let string = json_module.call_method("dumps", (pydict,), None)?;
-                Ok(TableData::Update(UpdateData::JsonColumns(
-                    string.extract::<String>()?,
-                )))
+                Ok(UpdateData::JsonColumns(string.extract::<String>()?).into())
             } else {
                 let mut schema = vec![];
                 for (key, val) in pydict.into_iter() {
@@ -336,7 +331,7 @@ impl PyClient {
 
         let table = table.await.into_pyerr()?;
         Ok(PyTable {
-            table: Arc::new(Mutex::new(table)),
+            table: Arc::new(table),
             client: py_client,
         })
     }
@@ -346,7 +341,7 @@ impl PyClient {
         let py_client = self.clone();
         let table = client.open_table(name).await.into_pyerr()?;
         Ok(PyTable {
-            table: Arc::new(Mutex::new(table)),
+            table: Arc::new(table),
             client: py_client,
         })
     }
@@ -363,7 +358,7 @@ impl PyClient {
 
 #[derive(Clone)]
 pub struct PyTable {
-    table: Arc<Mutex<Table>>,
+    table: Arc<Table>,
     client: PyClient,
 }
 
@@ -371,31 +366,31 @@ assert_table_api!(PyTable);
 
 impl PyTable {
     pub async fn get_index(&self) -> Option<String> {
-        self.table.lock().await.get_index()
+        self.table.get_index()
     }
 
     pub async fn get_limit(&self) -> Option<u32> {
-        self.table.lock().await.get_limit()
+        self.table.get_limit()
     }
 
     pub async fn size(&self) -> PyResult<usize> {
-        self.table.lock().await.size().await.into_pyerr()
+        self.table.size().await.into_pyerr()
     }
 
     pub async fn columns(&self) -> PyResult<Vec<String>> {
-        self.table.lock().await.columns().await.into_pyerr()
+        self.table.columns().await.into_pyerr()
     }
 
     pub async fn clear(&self) -> PyResult<()> {
-        self.table.lock().await.clear().await.into_pyerr()
+        self.table.clear().await.into_pyerr()
     }
 
     pub async fn delete(&self) -> PyResult<()> {
-        self.table.lock().await.delete().await.into_pyerr()
+        self.table.delete().await.into_pyerr()
     }
 
     pub async fn make_port(&self) -> PyResult<i32> {
-        self.table.lock().await.make_port().await.into_pyerr()
+        self.table.make_port().await.into_pyerr()
     }
 
     pub async fn on_delete(&self, callback_py: Py<PyFunction>) -> PyResult<u32> {
@@ -415,13 +410,7 @@ impl PyTable {
             })
         };
 
-        let callback_id = self
-            .table
-            .lock()
-            .await
-            .on_delete(callback)
-            .await
-            .into_pyerr()?;
+        let callback_id = self.table.on_delete(callback).await.into_pyerr()?;
 
         Python::with_gil(move |py| callback_py.setattr(py, PSP_CALLBACK_ID, callback_id))?;
         Ok(callback_id)
@@ -430,22 +419,17 @@ impl PyTable {
     pub async fn remove_delete(&self, callback: Py<PyFunction>) -> PyResult<()> {
         let callback_id =
             Python::with_gil(|py| callback.getattr(py, PSP_CALLBACK_ID)?.extract(py))?;
-        self.table
-            .lock()
-            .await
-            .remove_delete(callback_id)
-            .await
-            .into_pyerr()
+        self.table.remove_delete(callback_id).await.into_pyerr()
     }
 
     pub async fn remove(&self, input: Py<PyAny>) -> PyResult<()> {
-        let table = self.table.lock().await;
+        let table = &self.table;
         let table_data = Python::with_gil(|py| UpdateData::from_py(py, &input))?;
         table.remove(table_data).await.into_pyerr()
     }
 
     pub async fn replace(&self, input: Py<PyAny>) -> PyResult<()> {
-        let table = self.table.lock().await;
+        let table = &self.table;
         let table_data = Python::with_gil(|py| UpdateData::from_py(py, &input))?;
         table.replace(table_data).await.into_pyerr()
     }
@@ -466,7 +450,8 @@ impl PyTable {
             };
             Ok(data) as PyResult<Py<PyAny>>
         })?;
-        let table = self.table.lock().await;
+
+        let table = &self.table;
         let table_data = Python::with_gil(|py| UpdateData::from_py(py, &input_data))?;
         let options = UpdateOptions { format, port_id };
         table.update(table_data, options).await.into_pyerr()?;
@@ -478,8 +463,6 @@ impl PyTable {
             Python::with_gil(|py| depythonize_bound(expressions.into_bound(py).into_any()))?;
         let records = self
             .table
-            .lock()
-            .await
             .validate_expressions(expressions)
             .await
             .into_pyerr()?;
@@ -488,7 +471,7 @@ impl PyTable {
     }
 
     pub async fn schema(&self) -> PyResult<HashMap<String, String>> {
-        let schema = self.table.lock().await.schema().await.into_pyerr()?;
+        let schema = self.table.schema().await.into_pyerr()?;
         Ok(schema
             .into_iter()
             .map(|(x, y)| (x, format!("{}", y)))
@@ -502,9 +485,9 @@ impl PyTable {
             })
             .transpose()?;
 
-        let view = self.table.lock().await.view(config).await.into_pyerr()?;
+        let view = self.table.view(config).await.into_pyerr()?;
         Ok(PyView {
-            view: Arc::new(Mutex::new(view)),
+            view: Arc::new(view),
             client: self.client.clone(),
         })
     }
@@ -512,7 +495,7 @@ impl PyTable {
 
 #[derive(Clone)]
 pub struct PyView {
-    view: Arc<Mutex<View>>,
+    view: Arc<View>,
     client: PyClient,
 }
 
@@ -520,31 +503,29 @@ assert_view_api!(PyView);
 
 impl PyView {
     pub async fn column_paths(&self) -> PyResult<Vec<String>> {
-        self.view.lock().await.column_paths().await.into_pyerr()
+        self.view.column_paths().await.into_pyerr()
     }
 
     pub async fn delete(&self) -> PyResult<()> {
-        self.view.lock().await.delete().await.into_pyerr()
+        self.view.delete().await.into_pyerr()
     }
 
     pub async fn dimensions(&self) -> PyResult<Py<PyAny>> {
-        let dim = self.view.lock().await.dimensions().await.into_pyerr()?;
+        let dim = self.view.dimensions().await.into_pyerr()?;
         Ok(Python::with_gil(|py| pythonize::pythonize(py, &dim))?)
     }
 
     pub async fn expand(&self, index: u32) -> PyResult<u32> {
-        self.view.lock().await.expand(index).await.into_pyerr()
+        self.view.expand(index).await.into_pyerr()
     }
 
     pub async fn collapse(&self, index: u32) -> PyResult<u32> {
-        self.view.lock().await.collapse(index).await.into_pyerr()
+        self.view.collapse(index).await.into_pyerr()
     }
 
     pub async fn expression_schema(&self) -> PyResult<HashMap<String, String>> {
         Ok(self
             .view
-            .lock()
-            .await
             .expression_schema()
             .await
             .into_pyerr()?
@@ -554,23 +535,21 @@ impl PyView {
     }
 
     pub async fn get_config(&self) -> PyResult<Py<PyAny>> {
-        let config = self.view.lock().await.get_config().await.into_pyerr()?;
+        let config = self.view.get_config().await.into_pyerr()?;
         Ok(Python::with_gil(|py| pythonize::pythonize(py, &config))?)
     }
 
     pub async fn get_min_max(&self, name: String) -> PyResult<(String, String)> {
-        self.view.lock().await.get_min_max(name).await.into_pyerr()
+        self.view.get_min_max(name).await.into_pyerr()
     }
 
     pub async fn num_rows(&self) -> PyResult<u32> {
-        self.view.lock().await.num_rows().await.into_pyerr()
+        self.view.num_rows().await.into_pyerr()
     }
 
     pub async fn schema(&self) -> PyResult<HashMap<String, String>> {
         Ok(self
             .view
-            .lock()
-            .await
             .schema()
             .await
             .into_pyerr()?
@@ -598,13 +577,7 @@ impl PyView {
             })
         };
 
-        let callback_id = self
-            .view
-            .lock()
-            .await
-            .on_delete(callback)
-            .await
-            .into_pyerr()?;
+        let callback_id = self.view.on_delete(callback).await.into_pyerr()?;
         Python::with_gil(move |py| callback_py.setattr(py, PSP_CALLBACK_ID, callback_id))?;
         Ok(callback_id)
     }
@@ -612,12 +585,7 @@ impl PyView {
     pub async fn remove_delete(&self, callback: Py<PyFunction>) -> PyResult<()> {
         let callback_id =
             Python::with_gil(|py| callback.getattr(py, PSP_CALLBACK_ID)?.extract(py))?;
-        self.view
-            .lock()
-            .await
-            .remove_delete(callback_id)
-            .await
-            .into_pyerr()
+        self.view.remove_delete(callback_id).await.into_pyerr()
     }
 
     pub async fn on_update(&self, callback: Py<PyFunction>, mode: Option<String>) -> PyResult<u32> {
@@ -630,14 +598,13 @@ impl PyView {
                     let callback = callback.clone();
                     Python::with_gil(|py| {
                         match (&x.delta, &loop_cb) {
-                            (None, None) => callback.call0(py)?,
-                            (None, Some(loop_cb)) => loop_cb.call1(py, (&callback,))?,
+                            (None, None) => callback.call1(py, (x.port_id,))?,
+                            (None, Some(loop_cb)) => loop_cb.call1(py, (&callback, x.port_id))?,
                             (Some(delta), None) => {
-                                callback.call1(py, (PyBytes::new_bound(py, delta),))?
+                                callback.call1(py, (x.port_id, PyBytes::new_bound(py, delta)))?
                             },
-                            (Some(delta), Some(loop_cb)) => {
-                                loop_cb.call1(py, (callback, PyBytes::new_bound(py, delta)))?
-                            },
+                            (Some(delta), Some(loop_cb)) => loop_cb
+                                .call1(py, (callback, x.port_id, PyBytes::new_bound(py, delta)))?,
                         };
 
                         Ok(())
@@ -657,20 +624,13 @@ impl PyView {
             .into_pyerr()?;
 
         self.view
-            .lock()
-            .await
             .on_update(Box::new(callback), OnUpdateOptions { mode })
             .await
             .into_pyerr()
     }
 
     pub async fn remove_update(&self, callback_id: u32) -> PyResult<()> {
-        self.view
-            .lock()
-            .await
-            .remove_update(callback_id)
-            .await
-            .into_pyerr()
+        self.view.remove_update(callback_id).await.into_pyerr()
     }
 
     pub async fn to_arrow(&self, window: Option<Py<PyDict>>) -> PyResult<Py<PyBytes>> {
@@ -678,7 +638,7 @@ impl PyView {
             Python::with_gil(|py| window.map(|x| depythonize_bound(x.into_bound(py).into_any())))
                 .transpose()?
                 .unwrap_or_default();
-        let arrow = self.view.lock().await.to_arrow(window).await.into_pyerr()?;
+        let arrow = self.view.to_arrow(window).await.into_pyerr()?;
         Ok(Python::with_gil(|py| PyBytes::new_bound(py, &arrow).into()))
     }
 
@@ -688,7 +648,7 @@ impl PyView {
                 .transpose()?
                 .unwrap_or_default();
 
-        self.view.lock().await.to_csv(window).await.into_pyerr()
+        self.view.to_csv(window).await.into_pyerr()
     }
 
     pub async fn to_columns_string(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
@@ -697,12 +657,7 @@ impl PyView {
                 .transpose()?
                 .unwrap_or_default();
 
-        self.view
-            .lock()
-            .await
-            .to_columns_string(window)
-            .await
-            .into_pyerr()
+        self.view.to_columns_string(window).await.into_pyerr()
     }
 
     pub async fn to_json_string(&self, window: Option<Py<PyDict>>) -> PyResult<String> {
@@ -711,11 +666,6 @@ impl PyView {
                 .transpose()?
                 .unwrap_or_default();
 
-        self.view
-            .lock()
-            .await
-            .to_json_string(window)
-            .await
-            .into_pyerr()
+        self.view.to_json_string(window).await.into_pyerr()
     }
 }

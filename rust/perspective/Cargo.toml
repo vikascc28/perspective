@@ -34,6 +34,10 @@ external-cpp = [
 ]
 
 [dependencies]
+async-lock = "2.5.0"
 perspective-client = { version = "2.10.1", path = "../perspective-client" }
 perspective-server = { version = "2.10.1", path = "../perspective-server" }
 tracing = { version = ">=0.1.36" }
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }

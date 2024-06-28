@@ -28,7 +28,7 @@ use crate::proto::{
     ColumnType, GetFeaturesReq, GetFeaturesResp, GetHostedTablesReq, GetHostedTablesResp,
     HostedTable, MakeTableReq, Request, Response, ServerSystemInfoReq,
 };
-use crate::table::{SystemInfo, Table, TableInitOptions};
+use crate::table::{SystemInfo, Table, TableInitOptions, TableOptions};
 use crate::table_data::{TableData, UpdateData};
 use crate::utils::*;
 use crate::view::ViewWindow;
@@ -240,11 +240,7 @@ impl Client {
             let window = ViewWindow::default();
             let arrow = view.to_arrow(window).await?;
             let mut table = self
-                .crate_table_inner(
-                    TableData::Update(UpdateData::Arrow(arrow)),
-                    options,
-                    entity_id,
-                )
+                .crate_table_inner(UpdateData::Arrow(arrow).into(), options.into(), entity_id)
                 .await?;
 
             let callback = {
@@ -273,14 +269,15 @@ impl Client {
             table.view_update_token = Some(on_update_token);
             Ok(table)
         } else {
-            self.crate_table_inner(input, options, entity_id).await
+            self.crate_table_inner(input, options.into(), entity_id)
+                .await
         }
     }
 
     async fn crate_table_inner(
         &self,
         input: TableData,
-        options: TableInitOptions,
+        options: TableOptions,
         entity_id: String,
     ) -> ClientResult<Table> {
         let msg = Request {
@@ -318,10 +315,9 @@ impl Client {
 
         // TODO fix this - name is repeated 2x
         if let Some(info) = infos.into_iter().find(|i| i.entity_id == entity_id) {
-            let options = TableInitOptions {
+            let options = TableOptions {
                 index: info.index,
                 limit: info.limit,
-                ..TableInitOptions::default()
             };
 
             let client = self.clone();

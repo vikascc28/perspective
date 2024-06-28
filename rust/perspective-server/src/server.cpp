@@ -29,6 +29,12 @@ new_session(const ProtoApiServer& self) {
     return server.new_session();
 };
 
+void
+close_session(const ProtoApiServer& self, std::uint32_t client_id) {
+    auto& server = const_cast<ProtoApiServer&>(self);
+    server.close_session(client_id);
+}
+
 rust::Box<ResponseBatch>
 handle_request(
     const ProtoApiServer& self,

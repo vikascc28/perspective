@@ -35,7 +35,7 @@ struct PyConnection(Py<PyFunction>);
 
 impl SessionHandler for PyConnection {
     async fn send_response<'a>(
-        &'a self,
+        &'a mut self,
         msg: &'a [u8],
     ) -> Result<(), perspective_server::ServerError> {
         Python::with_gil(|py| self.0.call1(py, (PyBytes::new_bound(py, msg),)))?;

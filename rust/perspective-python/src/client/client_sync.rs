@@ -11,13 +11,28 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 use std::collections::HashMap;
+use std::future::Future;
 
 use perspective_client::{assert_table_api, assert_view_api};
 use pollster::FutureExt;
+use pyo3::marker::Ungil;
 use pyo3::prelude::*;
 use pyo3::types::*;
 
 use super::python::*;
+
+trait PyFutureExt: Future {
+    fn py_block_on(self, py: Python<'_>) -> Self::Output
+    where
+        Self: Sized + Send,
+        Self::Output: Ungil,
+    {
+        use pollster::FutureExt;
+        py.allow_threads(move || self.block_on())
+    }
+}
+
+impl<F: Future> PyFutureExt for F {}
 
 #[pyclass]
 pub struct PySyncClient(PyClient);
@@ -30,21 +45,22 @@ impl PySyncClient {
         Ok(PySyncClient(client))
     }
 
-    pub fn handle_response(&self, response: Py<PyBytes>) -> PyResult<()> {
-        self.0.handle_response(response).block_on()
+    pub fn handle_response(&self, py: Python<'_>, response: Py<PyBytes>) -> PyResult<()> {
+        self.0.handle_response(response).py_block_on(py)
     }
 
     #[doc = include_str!("../../docs/table.md")]
     #[pyo3(signature = (input, limit=None, index=None, name=None))]
     pub fn table(
         &self,
+        py: Python<'_>,
         input: Py<PyAny>,
         limit: Option<u32>,
         index: Option<Py<PyString>>,
         name: Option<Py<PyString>>,
     ) -> PyResult<PySyncTable> {
         Ok(PySyncTable(
-            self.0.table(input, limit, index, name).block_on()?,
+            self.0.table(input, limit, index, name).py_block_on(py)?,
         ))
     }
 
@@ -139,8 +155,9 @@ impl PySyncTable {
     }
 
     #[doc = include_str!("../../docs/table/size.md")]
-    fn size(&self) -> PyResult<usize> {
-        self.0.size().block_on()
+    fn size(&self, py: Python<'_>) -> PyResult<usize> {
+        tracing::error!("WIP");
+        self.0.size().py_block_on(py)
     }
 
     #[doc = include_str!("../../docs/table/update.md")]
@@ -153,11 +170,12 @@ impl PySyncTable {
     #[pyo3(signature = (input, format=None, port_id=None))]
     fn update(
         &self,
+        py: Python<'_>,
         input: Py<PyAny>,
         format: Option<String>,
         port_id: Option<u32>,
     ) -> PyResult<()> {
-        self.0.update(input, format, port_id).block_on()
+        self.0.update(input, format, port_id).py_block_on(py)
     }
 }
 

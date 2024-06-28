@@ -16,8 +16,8 @@
 //! e.g. `perspective-client` to create client connections to a server.
 //!
 //! The [`perspective`] crate provides a convenient frontend for Rust
-//! developers, including both `perspective-client` and `perspective-server` as
-//! well as other convenient integration helpers.
+//! developers, including both [`perspective_client`] and [`perspective_server`]
+//! as well as other convenient integration helpers.
 //!
 //! # Architecture
 //!
@@ -86,7 +86,7 @@ pub trait SessionHandler: Send + Sync {
     /// Dispatch a message from a [`Server`] for a the [`Session`] that took
     /// this `SessionHandler` instance as a constructor argument.
     fn send_response<'a>(
-        &'a self,
+        &'a mut self,
         msg: &'a [u8],
     ) -> impl Future<Output = Result<(), ServerError>> + Send + 'a;
 }
@@ -129,7 +129,11 @@ impl Server {
             .await
             .insert(id, Arc::new(send_response));
 
-        Session { id, server }
+        Session {
+            id,
+            server,
+            closed: false,
+        }
     }
 
     /// Create a [`Session`] for this [`Server`], suitable for exactly one
@@ -149,7 +153,7 @@ impl Server {
         F: SessionHandler + 'static + Sync + Send + Clone,
     {
         self.new_session_with_callback(move |msg| {
-            let session_handler = session_handler.clone();
+            let mut session_handler = session_handler.clone();
             Box::pin(async move { session_handler.send_response(msg).await })
         })
         .await
@@ -157,7 +161,14 @@ impl Server {
 
     async fn handle_request(&self, client_id: u32, val: &[u8]) -> Result<(), ServerError> {
         for response in ffi::handle_request(&self.server, client_id, val).0 {
-            if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
+            let cb = self
+                .callbacks
+                .read()
+                .await
+                .get(&response.client_id)
+                .cloned();
+
+            if let Some(f) = cb {
                 f(&response.resp).await?
             }
         }
@@ -167,12 +178,28 @@ impl Server {
 
     async fn poll(&self) -> Result<(), ServerError> {
         for response in ffi::poll(&self.server).0 {
-            if let Some(f) = self.callbacks.read().await.get(&response.client_id) {
+            let cb = self
+                .callbacks
+                .read()
+                .await
+                .get(&response.client_id)
+                .cloned();
+
+            if let Some(f) = cb {
                 f(&response.resp).await?
             }
         }
 
         Ok(())
+    }
+
+    async fn close(&self, client_id: u32) {
+        ffi::close_session(&self.server, client_id);
+        self.callbacks
+            .write()
+            .await
+            .remove(&client_id)
+            .expect("Already closed");
     }
 }
 
@@ -181,10 +208,18 @@ impl Server {
 /// wants to connect to a [`Server`], a dedicated [`Session`] must be created.
 /// The [`Session`] handles routing messages emitted by the [`Server`], as well
 /// as owning any resources the [`Client`] may request.
-#[derive(Clone)]
 pub struct Session {
     id: u32,
     server: Server,
+    closed: bool,
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        if !self.closed {
+            tracing::error!("`Session` dropped without `Session::close`");
+        }
+    }
 }
 
 impl Session {
@@ -229,5 +264,10 @@ impl Session {
     /// ```
     pub async fn poll(&self) -> Result<(), ServerError> {
         self.server.poll().await
+    }
+
+    pub async fn close(mut self) {
+        self.closed = true;
+        self.server.close(self.id).await
     }
 }

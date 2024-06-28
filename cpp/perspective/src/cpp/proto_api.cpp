@@ -34,6 +34,11 @@ ProtoApiServer::new_session() {
     return m_impl->m_server->new_session();
 }
 
+void
+ProtoApiServer::close_session(const std::uint32_t& client_id) {
+    return m_impl->m_server->close_session(client_id);
+}
+
 std::vector<ProtoApiResponse>
 ProtoApiServer::handle_request(std::uint32_t client_id, const std::string& data)
     const {

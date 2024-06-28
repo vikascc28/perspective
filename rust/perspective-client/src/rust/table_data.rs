@@ -35,6 +35,12 @@ pub enum UpdateData {
     JsonColumns(String),
 }
 
+impl From<UpdateData> for TableData {
+    fn from(value: UpdateData) -> Self {
+        TableData::Update(value)
+    }
+}
+
 impl From<TableData> for proto::MakeTableData {
     fn from(value: TableData) -> Self {
         let data = match value {

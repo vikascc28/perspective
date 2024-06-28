@@ -198,7 +198,7 @@ endif()
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/include")
 
 # Needs to be set early so that all translation units use it.
-if(NOT PSP_WASM_BUILD)
+if (NOT PSP_PYODIDE)
     set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -fexceptions")
 endif()
 
@@ -210,7 +210,7 @@ if(NOT DEFINED PSP_WASM_EXCEPTIONS)
     endif()
 endif()
 
-if(PSP_WASM_BUILD)
+if(PSP_PYODIDE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \
         -s RELOCATABLE=1 \
         -s SIDE_MODULE=2 \
@@ -295,6 +295,7 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
             else ()
                  set(OPT_FLAGS " \
                     -O0 \
+                    -fexceptions \
                     -g3 \
                     ")
                  if (PSP_WASM_EXCEPTIONS)
@@ -304,6 +305,7 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
         else()
             set(OPT_FLAGS " \
                 -O3 \
+                -fexceptions \
                 -g1 \
                 ")
             if (PSP_WASM_EXCEPTIONS)
@@ -578,7 +580,7 @@ set(PSP_WASM_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \
     -s NODEJS_CATCH_REJECTION=0 \
     -s USE_ES6_IMPORT_META=1 \
     -s EXPORT_ES6=1 \
-    -s EXPORTED_FUNCTIONS=_js_poll,_js_new_server,_js_free,_js_alloc,_js_handle_request \
+    -s EXPORTED_FUNCTIONS=_js_poll,_js_new_server,_js_free,_js_alloc,_js_handle_request,_js_new_session,_js_close_session \
 ")
 if (PSP_WASM_EXCEPTIONS)
     set(PSP_WASM_LINKER_FLAGS "${PSP_WASM_LINKER_FLAGS} -s EXCEPTION_STACK_TRACES=1 ")

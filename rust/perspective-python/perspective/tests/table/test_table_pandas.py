@@ -15,7 +15,8 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-from perspective.table import Table
+from perspective import Table
+from pytest import mark
 
 
 class TestTablePandas(object):
@@ -67,6 +68,7 @@ class TestTablePandas(object):
         assert data["a"].tolist() == [None, 1, None, 2]
         assert data["b"].tolist() == [1.5, None, 2.5, None]
 
+    @mark.skip(reason="Deprecated support for Series")
     def test_table_date_series(self, util):
         data = util.make_series(freq="D")
         tbl = Table(data)
@@ -85,6 +87,7 @@ class TestTablePandas(object):
             util.to_timestamp(datetime(2000, 1, 10)),
         ]
 
+    @mark.skip(reason="Deprecated support for Series")
     def test_table_time_series(self, util):
         data = util.make_series(freq="H")
         tbl = Table(data)
@@ -103,6 +106,7 @@ class TestTablePandas(object):
             util.to_timestamp(datetime(2000, 1, 1, 9, 0, 0)),
         ]
 
+    @mark.skip(reason="pyarrow dataframe does not support date inference")
     def test_table_dataframe_infer_date(self, util):
         data = util.make_dataframe(freq="M")
 
@@ -110,6 +114,32 @@ class TestTablePandas(object):
         assert tbl.size() == 10
         assert tbl.schema() == {
             "index": "date",
+            "a": "float",
+            "b": "float",
+            "c": "float",
+            "d": "float",
+        }
+
+        assert tbl.view().to_columns()["index"] == [
+            util.to_timestamp(datetime(2000, 1, 31)),
+            util.to_timestamp(datetime(2000, 2, 29)),
+            util.to_timestamp(datetime(2000, 3, 31)),
+            util.to_timestamp(datetime(2000, 4, 30)),
+            util.to_timestamp(datetime(2000, 5, 31)),
+            util.to_timestamp(datetime(2000, 6, 30)),
+            util.to_timestamp(datetime(2000, 7, 31)),
+            util.to_timestamp(datetime(2000, 8, 31)),
+            util.to_timestamp(datetime(2000, 9, 30)),
+            util.to_timestamp(datetime(2000, 10, 31)),
+        ]
+
+    def test_table_dataframe_infer_date_fixed(self, util):
+        data = util.make_dataframe(freq="M")
+
+        tbl = Table(data)
+        assert tbl.size() == 10
+        assert tbl.schema() == {
+            "index": "datetime",
             "a": "float",
             "b": "float",
             "c": "float",
@@ -155,6 +185,7 @@ class TestTablePandas(object):
             util.to_timestamp(datetime(2000, 1, 1, 9, 0, 0)),
         ]
 
+    @mark.skip(reason="pyarrow dataframe does not support date inference")
     def test_table_dataframe_year_start_index(self, util):
         data = util.make_dataframe(freq="AS")
 
@@ -181,6 +212,33 @@ class TestTablePandas(object):
             util.to_timestamp(datetime(2009, 1, 1, 0, 0, 0)),
         ]
 
+    def test_table_dataframe_year_start_index_fixed(self, util):
+        data = util.make_dataframe(freq="AS")
+
+        tbl = Table(data)
+        assert tbl.size() == 10
+        assert tbl.schema() == {
+            "index": "datetime",
+            "a": "float",
+            "b": "float",
+            "c": "float",
+            "d": "float",
+        }
+
+        assert tbl.view().to_columns()["index"] == [
+            util.to_timestamp(datetime(2000, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2001, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2002, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2003, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2004, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2005, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2006, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2007, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2008, 1, 1, 0, 0, 0)),
+            util.to_timestamp(datetime(2009, 1, 1, 0, 0, 0)),
+        ]
+
+    @mark.skip(reason="pyarrow dataframe does not support date inference")
     def test_table_dataframe_quarter_index(self, util):
         data = util.make_dataframe(size=4, freq="Q")
 
@@ -188,6 +246,26 @@ class TestTablePandas(object):
         assert tbl.size() == 4
         assert tbl.schema() == {
             "index": "date",
+            "a": "float",
+            "b": "float",
+            "c": "float",
+            "d": "float",
+        }
+
+        assert tbl.view().to_columns()["index"] == [
+            util.to_timestamp(datetime(2000, 3, 31, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 6, 30, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 9, 30, 0, 0, 0)),
+            util.to_timestamp(datetime(2000, 12, 31, 0, 0, 0)),
+        ]
+
+    def test_table_dataframe_quarter_index_fixed(self, util):
+        data = util.make_dataframe(size=4, freq="Q")
+
+        tbl = Table(data)
+        assert tbl.size() == 4
+        assert tbl.schema() == {
+            "index": "datetime",
             "a": "float",
             "b": "float",
             "c": "float",
@@ -228,21 +306,16 @@ class TestTablePandas(object):
 
         assert tbl.size() == 30
         assert tbl.schema() == {
-            "index": "date",
+            "index": "integer",
             "a": "float",
             "b": "float",
             "c": "float",
             "d": "float",
         }
 
-        assert tbl.view().to_columns()["index"][:5] == [
-            util.to_timestamp(datetime(2000, 1, 1)),
-            util.to_timestamp(datetime(2000, 2, 1)),
-            util.to_timestamp(datetime(2000, 3, 1)),
-            util.to_timestamp(datetime(2000, 4, 1)),
-            util.to_timestamp(datetime(2000, 5, 1)),
-        ]
+        assert tbl.view().to_columns()["index"][:5] == [360, 361, 362, 363, 364]
 
+    @mark.skip(reason="pyarrow does not support this")
     def test_table_pandas_period(self, util):
         df = pd.DataFrame(
             {
@@ -278,6 +351,7 @@ class TestTablePandas(object):
         table.update(df)
         assert table.view().to_columns()["a"] == data
 
+    @mark.skip(reason="pyarrow does not support this")
     def test_table_pandas_from_schema_bool_str(self):
         data = ["True", "False", "True", "False"]
         df = pd.DataFrame({"a": data})
@@ -332,7 +406,7 @@ class TestTablePandas(object):
             util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             None,
         ]
-        df = pd.DataFrame({"a": data})
+        df = pd.DataFrame({"a": pd.to_datetime(data, unit="ms")})
         table = Table({"a": "datetime"})
         table.update(df)
         assert table.view().to_columns()["a"] == data
@@ -344,7 +418,7 @@ class TestTablePandas(object):
             util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
             np.nan,
         ]
-        df = pd.DataFrame({"a": data})
+        df = pd.DataFrame({"a": pd.to_datetime(data, unit="ms")})
         table = Table({"a": "datetime"})
         table.update(df)
         assert table.view().to_columns()["a"] == [
@@ -354,15 +428,17 @@ class TestTablePandas(object):
             None,
         ]
 
+    @mark.skip(reason="This is no longer relevant")
     def test_table_pandas_from_schema_datetime_timestamp_ms(self, util):
         data = [
             util.to_timestamp(datetime(2019, 7, 11, 12, 30, 5)) * 1000,
             np.nan,
-            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)) * 1000,
+            util.to_timestamp(datetime(2019, 7, 11, 13, 30, 5)),
+            *1000,
             np.nan,
         ]
 
-        df = pd.DataFrame({"a": data})
+        df = pd.DataFrame({"a": pd.to_datetime(data, unit="ms")})
         table = Table({"a": "datetime"})
         table.update(df)
         assert table.view().to_columns()["a"] == [

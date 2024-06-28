@@ -22,7 +22,7 @@
         <script type="module">
             import perspective from "/node_modules/@finos/perspective/dist/cdn/perspective.js";
             const socket = await perspective.websocket("/ws");
-            const table = await socket.open_table("superstore");
+            const table = await socket.open_table("my_data_source");
             const viewer = document.getElementsByTagName("perspective-viewer")[0];
             viewer.load(table);
             viewer.restore({ settings: true, plugin_config: { edit_mode: "EDIT" } });

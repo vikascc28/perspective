@@ -13,7 +13,6 @@
 use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -21,9 +20,12 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::{get, get_service};
 use axum::Router;
-use perspective::client::{TableData, TableInitOptions, UpdateData};
-use perspective::server::{Server, SessionHandler};
-use tokio::sync::Mutex;
+use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures::future::{select, Either};
+use futures::{FutureExt, SinkExt, StreamExt};
+use perspective::client::{TableInitOptions, UpdateData};
+use perspective::server::{Server, Session, SessionHandler};
+use perspective::LocalClient;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::filter::LevelFilter;
@@ -31,121 +33,139 @@ use tracing_subscriber::fmt::layer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry;
 
-/// A thread-safe wrapper for a [`WebSocket`], which will be accessed from
-/// separate _writing_ (via [`WebSocket::send`]) and _reading_
-/// (via [`WebSocket::recv`]) async tasks.
+const ROOT_PATH: &str = "../..";
+const ARROW_FILE_PATH: &str = "node_modules/superstore-arrow/superstore.arrow";
+const SERVER_ADDRESS: &str = "0.0.0.0:3000";
+
+/// A local error synonym for this module only.
+type PerspectiveWSError = Box<dyn std::error::Error + Send + Sync>;
+
+/// We must share access to the [`WebSocket`] for both sending and receiving
+/// messages, a message flow which this enum is used to model. When the client
+/// disconnects or the message stream is unrecoverably errored, we must emit
+/// an _end_ message as well.
+enum PerspectiveWSMessage {
+    Incoming(Vec<u8>),
+    Outgoing(Vec<u8>),
+    End,
+}
+
+/// A new-type wrapper for an [`UnboundedSender`], whic bypasses the orphan
+/// instance rule allowing us to write a [`SessionHandler`] impl for this
+/// struct.
 #[derive(Clone)]
-struct PerspectiveWSConnection(Arc<Mutex<WebSocket>>);
+struct PerspectiveWSConnection(UnboundedSender<Vec<u8>>);
 
 /// The [`SessionHandler`] implementation provides a method for a [`Session`] to
-/// send messages to this [`WebSocket`], which may (or ay not) be solicited
-/// (e.g. within the async call stack of [`Session::handle_request`]).
+/// send messages to this [`axum::extract::ws::WebSocket`], which may (or may
+/// not) be solicited (e.g. within the async call stack of
+/// [`perspective::Session::handle_request`]).
 impl SessionHandler for PerspectiveWSConnection {
-    async fn send_response<'a>(
-        &'a self,
-        resp: &'a [u8],
-    ) -> Result<(), perspective::server::ServerError> {
-        let mut socket = self.0.lock().await;
-        socket.send(Message::Binary(resp.to_vec())).await?;
-        Ok(())
+    async fn send_response<'a>(&'a mut self, resp: &'a [u8]) -> Result<(), PerspectiveWSError> {
+        Ok(self.0.send(resp.to_vec()).await?)
     }
+}
+
+/// The inner message loop handles the full-duplex stream of messages between
+/// the [`perspective::Client`] and [`Session`]. When this funciton returns,
+/// messages are no longer processed.
+async fn process_message_loop(
+    socket: &mut WebSocket,
+    receiver: &mut UnboundedReceiver<Vec<u8>>,
+    session: &mut Session,
+) -> Result<(), PerspectiveWSError> {
+    use Either::*;
+    use Message::*;
+    use PerspectiveWSMessage::*;
+
+    loop {
+        let msg = match select(socket.recv().boxed(), receiver.next()).await {
+            Right((Some(bytes), _)) => Ok(Outgoing(bytes)),
+            Left((Some(Ok(Binary(bytes))), _)) => Ok(Incoming(bytes)),
+            Right((None, _)) | Left((None | Some(Ok(Close(_))), _)) => Ok(End),
+            Left((Some(Ok(_)), _)) => Err("Unexpected message type".to_string()),
+            Left((Some(Err(err)), _)) => Err(format!("{}", err)),
+        }?;
+
+        match msg {
+            End => break,
+            Outgoing(bytes) => socket.send(Binary(bytes)).await?,
+            Incoming(bytes) => {
+                session.handle_request(&bytes).await?;
+                session.poll().await?
+            },
+        }
+    }
+
+    Ok(())
 }
 
 /// This handler is responsible for the beginning-to-end lifecycle of a single
 /// WebSocket connection to the Axum server. Messages will come in from the
-/// [`WebSocket`] in binary form via [`Message::Binary`], where they'll be
-/// routed to [`Session::handle_request`]. The server may generate one or more
-/// responses, which it will then send back to the [`WebSocket::send`] method
-/// via its [`SessionHandler`] impl.
-async fn perspective_websocket_handler(
+/// [`axum::extract::ws::WebSocket`] in binary form via [`Message::Binary`],
+/// where they'll be routed to [`perspective::Session::handle_request`]. The
+/// server may generate one or more responses, which it will then send back to
+/// the [`axum::extract::ws::WebSocket::send`] method via its [`SessionHandler`]
+/// impl.
+async fn websocket_handler(
     ws: WebSocketUpgrade,
     State(server): State<Server>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     tracing::info!("{addr} Connected.");
-    ws.on_upgrade(move |socket| async move {
-        // A new connection is established, create a new `Session` for it.
-        let conn = PerspectiveWSConnection(Arc::new(Mutex::new(socket)));
-
-        // Use the [`SessionHandler`] impl to connect messages from the `Server`
-        // to `WebSocket::send`. This needs to be set first because calling
-        // [`Session::handle_request`] will cause the `Server` to emit messages.
-        let session = server.new_session(conn.clone()).await;
-
-        // Loop until there are no more messages, being careful not to hold the
-        // `Mutex` while awaiting method calls on `Session`.
-        loop {
-            let msg = conn.0.lock().await.recv().await;
-            if let Some(Ok(Message::Binary(bytes))) = &msg {
-                // Pass the message to `Session::handle_request`, which will
-                // invoke `SessionHandler::handle_response` with any
-                // generated resposnes.
-                session.handle_request(bytes).await.expect("Internal error");
-
-                // [`Session::poll`] flushes any asynchronous messages, such as
-                // `View::on_update` notifications. It can be called "later",
-                // as long as a call is scheduled whenever the [`Server`] is
-                // disturbed by a [`Session::handle_request`] call.
-                session.poll().await.expect("Internal error");
-            } else {
-                break;
-            };
+    ws.on_upgrade(move |mut socket| async move {
+        let (send, mut receiver) = unbounded::<Vec<u8>>();
+        let mut session = server.new_session(PerspectiveWSConnection(send)).await;
+        if let Err(msg) = process_message_loop(&mut socket, &mut receiver, &mut session).await {
+            tracing::error!("Internal error {}", msg);
         }
 
-        tracing::info!("{addr} Disconnected");
+        session.close().await;
     })
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize application logging via [`tracing`].
-    registry()
-        .with(layer().compact().with_filter(LevelFilter::INFO))
-        .init();
+/// Load the example Apache Arrow file from disk and create a
+/// [`perspective::Table`] named "my_data_source".
+async fn load_server_arrow(server: &Server) -> Result<(), PerspectiveWSError> {
+    let client = LocalClient::new(server);
+    let mut file = File::open(std::path::Path::new(ROOT_PATH).join(ARROW_FILE_PATH))?;
+    let mut feather = Vec::with_capacity(file.metadata()?.len() as usize);
+    file.read_to_end(&mut feather)?;
+    let data = UpdateData::Arrow(feather.into());
+    let mut options = TableInitOptions::default();
+    options.set_name("my_data_source");
+    client.table(data.into(), options).await?;
+    client.close().await;
+    Ok(())
+}
 
-    // Create a `Server` which will be shared by this app server and any
-    // browsers which connect remotely.
-    let server = Server::default();
-
-    // Create a local `Client` connection to `server` for the app server
-    // process to use.
-    let client = perspective::create_local_client(&server).await?;
-
-    // Load the "Superstore" Arrow example data.
-    let feather = {
-        let mut file = File::open("../../node_modules/superstore-arrow/superstore.lz4.arrow")?;
-        let mut feather = Vec::with_capacity(file.metadata()?.len() as usize);
-        file.read_to_end(&mut feather)?;
-        feather
-    };
-
-    // Use the local `client` to create a Perspective `Table` named "superstore"
-    // from the Superstore bytes data. Only browser clients will be accessing
-    // this [`perspective::client::Table`] once it is created, so the client handle
-    // returned is not needed.
-    let _ = client
-        .table(
-            TableData::Update(UpdateData::Arrow(feather.into())),
-            TableInitOptions {
-                name: Some("superstore".to_owned()),
-                ..TableInitOptions::default()
-            },
-        )
-        .await?;
-
-    // Create an Axum server which routes Web Socket message bytes to
-    // `perspective_websocket_handler` on the path `/ws`, and serves a simple
-    // HTML client application at the root.
+/// Host a combination HTTP file server + WebSocket server, which serves a
+/// simple Perspective application. The app's HTML, etc., assets are served
+/// from the root, while the app's embedded WebAssembly [`perspective::Client`]
+/// will connect to this server over a WebSocket via the path `/ws`.
+async fn start_web_server_and_block(server: Server) -> Result<(), PerspectiveWSError> {
     let app = Router::new()
         .route("/", get_service(ServeFile::new("src/index.html")))
-        .route("/ws", get(perspective_websocket_handler))
-        .fallback_service(ServeDir::new("../.."))
+        .route("/ws", get(websocket_handler))
+        .fallback_service(ServeDir::new(ROOT_PATH))
         .with_state(server)
         .layer(TraceLayer::new_for_http());
 
     let service = app.into_make_service_with_connect_info::<SocketAddr>();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+    let listener = tokio::net::TcpListener::bind(SERVER_ADDRESS).await?;
     tracing::info!("listening on {}", listener.local_addr()?);
     axum::serve(listener, service).await?;
+    Ok(())
+}
+
+#[tokio::main(flavor = "multi_thread")]
+async fn main() -> Result<(), PerspectiveWSError> {
+    registry()
+        .with(layer().compact().with_filter(LevelFilter::INFO))
+        .init();
+
+    let server = Server::default();
+    load_server_arrow(&server).await?;
+    start_web_server_and_block(server).await?;
     Ok(())
 }

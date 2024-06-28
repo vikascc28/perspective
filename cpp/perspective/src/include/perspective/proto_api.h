@@ -32,6 +32,7 @@ public:
     ~ProtoApiServer();
 
     std::uint32_t new_session();
+    void close_session(const std::uint32_t& client_id);
 
     [[nodiscard]]
     std::vector<ProtoApiResponse>
