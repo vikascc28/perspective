@@ -105,20 +105,24 @@ class TestToFormat(object):
 
     def test_to_records_datetime(self, util):
         dt = datetime(2019, 9, 10, 19, 30, 59, 515000)
-        data = [{"a": dt, "b": "string2"}, {"a": dt, "b": "string4"}]
+        data = [{"a": str(dt), "b": "string2"}, {"a": str(dt), "b": "string4"}]
         tbl = Table({"a": "datetime", "b": "string"})
         tbl.update(data)
         view = tbl.view()
-        data_out = [{"a": util.to_timestamp(dt), "b": "string2"},
-                    {"a": util.to_timestamp(dt), "b": "string4"}]
+        data_out = [
+            {"a": util.to_timestamp(dt), "b": "string2"},
+            {"a": util.to_timestamp(dt), "b": "string4"},
+        ]
         assert view.to_records() == data_out  # should have symmetric input/output
 
+    @mark.skip(reason="No longer supported format")
     def test_to_records_datetime_str(self, util):
         data = [
             {"a": "03/11/2019 3:15PM", "b": "string2"},
             {"a": "3/11/2019 3:20PM", "b": "string4"},
         ]
-        tbl = Table(data)
+        tbl = Table({"a": "datetime", "b": "string"})
+        tbl.update(data)
         view = tbl.view()
         assert view.schema()["a"] == "datetime"
         assert view.to_records() == [
@@ -126,10 +130,13 @@ class TestToFormat(object):
             {"a": util.to_timestamp(datetime(2019, 3, 11, 15, 20)), "b": "string4"},
         ]
 
+    @mark.skip(reason="No longer supported format")
     def test_to_records_datetime_str_tz(self, util):
         dt = "2019/07/25T15:30:00+00:00"
         data = [{"a": dt}, {"a": dt}]
-        tbl = Table(data)
+        tbl = Table({"a": "datetime"})
+        tbl.update(data)
+
         view = tbl.view()
         assert view.schema()["a"] == "datetime"
         records = view.to_records()
@@ -140,9 +147,12 @@ class TestToFormat(object):
             {"a": (datetime(2019, 7, 25, 15, 30, tzinfo=pytz.utc))},
         ]
 
+    @mark.skip(reason="No longer supported format")
     def test_to_records_datetime_ms_str(self, util):
         data = [{"a": "03/11/2019 3:15:15.999PM"}, {"a": "3/11/2019 3:15:16.001PM"}]
-        tbl = Table(data)
+        tbl = Table({"a": "datetime"})
+        tbl.update(data)
+
         view = tbl.view()
         assert view.schema()["a"] == "datetime"
         assert view.to_records() == [
@@ -225,14 +235,20 @@ class TestToFormat(object):
         data = [{"a": today, "b": 2}, {"a": today, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_columns() == {"a": [util.to_timestamp(dt), util.to_timestamp(dt)], "b": [2, 4]}
+        assert view.to_columns() == {
+            "a": [util.to_timestamp(dt), util.to_timestamp(dt)],
+            "b": [2, 4],
+        }
 
     def test_to_columns_datetime(self, util):
         dt = datetime(2019, 3, 15, 20, 30, 59, 6000)
         data = [{"a": dt, "b": 2}, {"a": dt, "b": 4}]
         tbl = Table(data)
         view = tbl.view()
-        assert view.to_columns() == {"a": [util.to_timestamp(dt), util.to_timestamp(dt)], "b": [2, 4]}
+        assert view.to_columns() == {
+            "a": [util.to_timestamp(dt), util.to_timestamp(dt)],
+            "b": [2, 4],
+        }
 
     def test_to_columns_bool(self):
         data = [{"a": True, "b": False}, {"a": True, "b": False}]
@@ -259,7 +275,11 @@ class TestToFormat(object):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
         tbl = Table(data)
         view = tbl.view(group_by=["a"])
-        assert view.to_columns() == {"__ROW_PATH__": [[], [1]], "a": [2, 2], "b": [4, 4]}
+        assert view.to_columns() == {
+            "__ROW_PATH__": [[], [1]],
+            "a": [2, 2],
+            "b": [4, 4],
+        }
 
     def test_to_columns_two(self):
         data = [{"a": 1, "b": 2}, {"a": 1, "b": 2}]

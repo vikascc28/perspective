@@ -2297,7 +2297,6 @@ ProtoServer::_process_table_unchecked(
             auto view = m_resources.get_view(view_id);
             auto subscriptions = m_resources.get_view_on_update_sub(view_id);
             for (auto& subscription : subscriptions) {
-
                 Response out;
                 out.set_msg_id(subscription.id);
                 out.set_entity_id(view_id);
@@ -2305,12 +2304,6 @@ ProtoServer::_process_table_unchecked(
                 r->set_port_id(port_id);
                 if (view->get_deltas_enabled()) {
                     *r->mutable_delta() = *view->get_row_delta_as_arrow();
-                } else {
-                    // If we don't do this, the delta field becomes
-                    // `undefined` on the client side and all the tests that
-                    // construct tables from deltas blow up constructing
-                    // `perspective.Table(undefined)`
-                    *r->mutable_delta() = "";
                 }
 
                 ProtoServerResp<proto::Response> resp2;

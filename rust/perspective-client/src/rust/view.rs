@@ -27,12 +27,12 @@ use crate::proto::response::ClientResp;
 use crate::proto::*;
 pub use crate::utils::*;
 
-#[derive(Default, Deserialize, TS)]
+#[derive(Default, Debug, Deserialize, TS)]
 pub struct OnUpdateOptions {
     pub mode: Option<OnUpdateMode>,
 }
 
-#[derive(Default, Deserialize, TS)]
+#[derive(Default, Debug, Deserialize, TS)]
 pub enum OnUpdateMode {
     #[default]
     #[serde(rename = "row")]

@@ -243,8 +243,10 @@ fn pandas_to_arrow_bytes<'py>(
             }
         })
         .collect();
+
     let names = PyList::new_bound(py, new_names.clone());
     let table = table.call_method1("rename_columns", (names,))?;
+
     // move the index column to be the first column.
     if new_names[new_names.len() - 1] == "index" {
         new_names.rotate_right(1);
@@ -318,7 +320,6 @@ impl PyClient {
             let input_data = if is_arrow_table(py, input.bind(py))? {
                 to_arrow_bytes(py, input.bind(py))?.to_object(py)
             } else if is_pandas_df(py, input.bind(py))? {
-                options.index = Some("index".into());
                 pandas_to_arrow_bytes(py, input.bind(py))?.to_object(py)
             } else {
                 input

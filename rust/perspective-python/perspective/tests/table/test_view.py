@@ -17,6 +17,7 @@ from perspective import PerspectivePyError, Table
 from datetime import date, datetime
 from pytest import approx, mark, raises
 
+
 def date_timestamp(date):
     return int(datetime.combine(date, datetime.min.time()).timestamp()) * 1000
 
@@ -255,22 +256,6 @@ class TestView(object):
         order = ["__ROW_PATH__", "a", "b", "c", "d"]
         assert view.column_paths() == order
 
-    @mark.skip(reason="We no longer 1:1 replicate pd.DataFrame behavior")
-    def test_view_df_aggregate_order_with_columns_old(self):
-        """If `columns` is provided, order is always guaranteed."""
-        data = pd.DataFrame(
-            {"a": [1, 2, 3], "b": [2, 3, 4], "c": [3, 4, 5], "d": [4, 5, 6]},
-            columns=["d", "a", "c", "b"],
-        )
-        tbl = Table(data)
-        view = tbl.view(
-            group_by=["a"],
-            aggregates={"d": "avg", "c": "avg", "b": "last", "a": "last"},
-        )
-
-        order = ["__ROW_PATH__", "index", "d", "a", "c", "b"]
-        assert view.column_paths() == order
-
     def test_view_df_aggregate_order_with_columns(self):
         """If `columns` is provided, order is always guaranteed."""
         data = pd.DataFrame(
@@ -283,7 +268,7 @@ class TestView(object):
             aggregates={"d": "avg", "c": "avg", "b": "last", "a": "last"},
         )
 
-        order = ["__ROW_PATH__", "d", "a", "c", "b"]
+        order = ["__ROW_PATH__", "index", "d", "a", "c", "b"]
         assert view.column_paths() == order
 
     def test_view_aggregates_with_no_columns(self):
@@ -333,7 +318,10 @@ class TestView(object):
             if len(rp) > 0:
                 assert rp[0] == util.to_timestamp(datetime(2019, 7, 11, 12, 30))
 
-        assert tbl.view().to_columns() == {"a": [util.to_timestamp(datetime(2019, 7, 11, 12, 30))], "b": [1]}
+        assert tbl.view().to_columns() == {
+            "a": [util.to_timestamp(datetime(2019, 7, 11, 12, 30))],
+            "b": [1],
+        }
 
     def test_view_split_by_datetime_names_utc(self):
         """Tests column paths for datetimes in UTC. Timezone-related tests are
@@ -345,20 +333,21 @@ class TestView(object):
         assert cols == ["2019-07-11 12:30:00.000|a", "2019-07-11 12:30:00.000|b"]
 
     # TODO: time slightly off! thinks its NYE 1969
-    @mark.skip # We do not support python datetimes.
+    @mark.skip  # We do not support python datetimes.
     def test_view_split_by_datetime_names_min(self):
         """Tests column paths for datetimes in UTC. Timezone-related tests are
         in the `test_table_datetime` file."""
         import os
+
         os.environ["TZ"] = "UTC"
         data = {"a": [datetime.min], "b": [1]}
-        tbl = Table({"a" :"datetime", "b": "integer"})
+        tbl = Table({"a": "datetime", "b": "integer"})
         tbl.update(data)
         view = tbl.view(split_by=["a"])
         cols = view.column_paths()
         assert cols == ["1970-01-01 00:00:00.000|a", "1970-01-01 00:00:00.000|b"]
 
-    @mark.skip # We dont support python datetimes.
+    @mark.skip  # We dont support python datetimes.
     def test_view_split_by_datetime_names_max(self):
         """Tests column paths for datetimes in UTC. Timezone-related tests are
         in the `test_table_datetime` file."""
@@ -399,7 +388,10 @@ class TestView(object):
         view = tbl.view(aggregates={"a": "distinct count"}, group_by=["a"])
         assert view.to_records() == [
             {"__ROW_PATH__": [], "a": 1},
-            {"__ROW_PATH__": [util.to_timestamp(datetime(2019, 10, 1, 11, 30))], "a": 1},
+            {
+                "__ROW_PATH__": [util.to_timestamp(datetime(2019, 10, 1, 11, 30))],
+                "a": 1,
+            },
         ]
 
     def test_view_aggregate_datetime_leading_zeroes(self, util):
@@ -411,7 +403,10 @@ class TestView(object):
         view = tbl.view(aggregates={"a": "distinct count"}, group_by=["a"])
         assert view.to_records() == [
             {"__ROW_PATH__": [], "a": 1},
-            {"__ROW_PATH__": [util.to_timestamp(datetime(2019, 1, 1, 5, 5, 5))], "a": 1},
+            {
+                "__ROW_PATH__": [util.to_timestamp(datetime(2019, 1, 1, 5, 5, 5))],
+                "a": 1,
+            },
         ]
 
     def test_view_aggregate_mean(self):
@@ -1392,28 +1387,36 @@ class TestView(object):
         data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "==", str(date(2019, 7, 12))]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 12)), "b": 4}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 12)), "b": 4}
+        ]
 
     # @mark.skip # We do not support using `datetime.date` in operators.
     def test_view_filter_date_neq(self, util):
         data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "!=", str(date(2019, 7, 12))]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11)), "b": 2}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11)), "b": 2}
+        ]
 
     def test_view_filter_date_str_eq(self, util):
         data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "==", "2019/7/12"]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 12)), "b": 4}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 12)), "b": 4}
+        ]
 
     def test_view_filter_date_str_neq(self, util):
         data = [{"a": date(2019, 7, 11), "b": 2}, {"a": date(2019, 7, 12), "b": 4}]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "!=", "2019/7/12"]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11)), "b": 2}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11)), "b": 2}
+        ]
 
-    @mark.skip # We do not support using `datetime.datetime` in operators
+    @mark.skip  # We do not support using `datetime.datetime` in operators
     def test_view_filter_datetime_eq(self, util):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1421,9 +1424,11 @@ class TestView(object):
         ]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "==", datetime(2019, 7, 11, 8, 15)]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11,() * 1000)), "b": 2}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11, () * 1000)), "b": 2}
+        ]
 
-    @mark.skip # We do not support using `datetime.datetime` in operators
+    @mark.skip  # We do not support using `datetime.datetime` in operators
     def test_view_filter_datetime_neq(self, util):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1431,9 +1436,11 @@ class TestView(object):
         ]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "!=", datetime(2019, 7, 11, 8, 15)]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11,() * 1000)), "b": 4}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11, () * 1000)), "b": 4}
+        ]
 
-    @mark.skip # We do not support numpy anymore
+    @mark.skip  # We do not support numpy anymore
     def test_view_filter_datetime_np_eq(self, util):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1443,9 +1450,11 @@ class TestView(object):
         view = tbl.view(
             filter=[["a", "==", np.datetime64(datetime(2019, 7, 11, 8, 15))]]
         )
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11,() * 1000)), "b": 2}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11, () * 1000)), "b": 2}
+        ]
 
-    @mark.skip # We do not support numpy anymore.
+    @mark.skip  # We do not support numpy anymore.
     def test_view_filter_datetime_np_neq(self, util):
         data = [
             {"a": datetime(2019, 7, 11, 8, 15), "b": 2},
@@ -1455,7 +1464,9 @@ class TestView(object):
         view = tbl.view(
             filter=[["a", "!=", np.datetime64(datetime(2019, 7, 11, 8, 15))]]
         )
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11,() * 1000)), "b": 4}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11, () * 1000)), "b": 4}
+        ]
 
     def test_view_filter_datetime_str_eq(self, util):
         data = [
@@ -1464,7 +1475,9 @@ class TestView(object):
         ]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "==", "2019/7/11 8:15"]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11,() * 1000)), "b": 2}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11, 8, 15)), "b": 2}
+        ]
 
     def test_view_filter_datetime_str_neq(self, util):
         data = [
@@ -1473,19 +1486,24 @@ class TestView(object):
         ]
         tbl = Table(data)
         view = tbl.view(filter=[["a", "!=", "2019/7/11 8:15"]])
-        assert view.to_records() == [{"a": util.to_timestamp(datetime(2019, 7, 11,() * 1000)), "b": 4}]
+        assert view.to_records() == [
+            {"a": util.to_timestamp(datetime(2019, 7, 11, 8, 16)), "b": 4}
+        ]
 
     def test_view_filter_string_is_none(self):
         data = [{"a": None, "b": 2}, {"a": "abc", "b": 4}]
         tbl = Table(data)
-        view = tbl.view(filter=[["a", "is null", ""]]) # XXX: Having to add this "" is not soooo great.
-        print(f"VIEW: {view.to_records()}")
+        view = tbl.view(
+            filter=[["a", "is null", ""]]
+        )  # XXX: Having to add this "" is not soooo great.
         assert view.to_records() == [{"a": None, "b": 2}]
 
     def test_view_filter_string_is_not_none(self):
         data = [{"a": None, "b": 2}, {"a": "abc", "b": 4}]
         tbl = Table(data)
-        view = tbl.view(filter=[["a", "is not null", ""]]) # XXX: Having to add this "" is not soooo great.
+        view = tbl.view(
+            filter=[["a", "is not null", ""]]
+        )  # XXX: Having to add this "" is not soooo great.
         assert view.to_records() == [{"a": "abc", "b": 4}]
 
     # on_update
@@ -2160,10 +2178,7 @@ class TestView(object):
         tbl = Table(data)
         with raises(PerspectivePyError) as ex:
             tbl.view(filter=[["x", "==", "abc"]])
-        assert (
-            str(ex.value)
-            == "Abort(): Filter column not in schema: x"
-        )
+        assert str(ex.value) == "Abort(): Filter column not in schema: x"
 
     def test_invalid_sorts_should_throw(self):
         data = [{"a": 1, "b": 2, "c": "a"}, {"a": 3, "b": 4, "c": "b"}]

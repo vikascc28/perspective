@@ -174,7 +174,9 @@ class TestUpdateArrow(object):
         with open(DICT_UPDATE_ARROW, mode="rb") as partial:
             tbl.update(partial.read())
             assert tbl.size() == 4
-            assert tbl.view().to_columns() == {"a": ["abc", "def", "update1", "update2"]}
+            assert tbl.view().to_columns() == {
+                "a": ["abc", "def", "update1", "update2"]
+            }
 
     # update with file arrow with less columns than in schema
 
@@ -490,7 +492,9 @@ class TestUpdateArrow(object):
 
         tbl.update(arrow)
 
-        assert tbl.view().to_columns()["a"] == [util.to_timestamp(datetime(2019, 2, i)) for i in range(1, 11)]
+        assert tbl.view().to_columns()["a"] == [
+            util.to_timestamp(datetime(2019, 2, i)) for i in range(1, 11)
+        ]
 
     def test_update_arrow_update_date_schema_with_date64(self, util):
         array = [date(2019, 2, i) for i in range(1, 11)]
@@ -504,7 +508,9 @@ class TestUpdateArrow(object):
 
         tbl.update(arrow)
 
-        assert tbl.view().to_columns()["a"] == [util.to_timestamp(datetime(2019, 2, i)) for i in range(1, 11)]
+        assert tbl.view().to_columns()["a"] == [
+            util.to_timestamp(datetime(2019, 2, i)) for i in range(1, 11)
+        ]
 
     def test_update_arrow_update_datetime_schema_with_timestamp(self, util):
         data = [
@@ -624,7 +630,9 @@ class TestUpdateArrow(object):
                 pa.timestamp("ns"),
             ],
         )
-        tbl = Table({"a": "datetime", "b": "datetime", "c": "datetime", "d": "datetime"})
+        tbl = Table(
+            {"a": "datetime", "b": "datetime", "c": "datetime", "d": "datetime"}
+        )
         tbl.update(arrow_data)
         assert tbl.size() == 10
         assert tbl.view().to_columns() == {
@@ -654,14 +662,12 @@ class TestUpdateArrow(object):
             "b": ["x", "y", None, "z"],
         }
 
+    @mark.skip(reason="Arrow no longer supports partial updates per row")
     def test_update_arrow_partial_updates_dictionary_stream(self, util):
         data = [([0, 1, 1, None], ["a", "b"]), ([0, 1, None, 2], ["x", "y", "z"])]
         arrow_data = util.make_dictionary_arrow(["a", "b"], data)
-
         tbl = Table({"a": "string", "b": "string"}, index="a")
-
         tbl.update(arrow_data)
-
         assert tbl.size() == 3
         assert tbl.view().to_columns() == {"a": [None, "a", "b"], "b": ["z", "x", "y"]}
 
@@ -694,6 +700,7 @@ class TestUpdateArrow(object):
         assert tbl.size() == 3
         assert tbl.view().to_columns() == {"a": [None, "a", "b"]}
 
+    @mark.skip(reason="Arrow no longer supports partial updates per row")
     def test_update_arrow_partial_updates_less_columns_dictionary_stream(self, util):
         data = [([0, 1, 1, None], ["a", "b"]), ([0, 1, None, 2], ["x", "y", "z"])]
         arrow_data = util.make_dictionary_arrow(["a", "b"], data)
@@ -713,7 +720,12 @@ class TestUpdateArrow(object):
         arrow = util.make_arrow(["a", "b", "c", "d"], data)
         update_arrow = util.make_arrow(["c", "b", "a", "d"], update_data)
         tbl = Table(arrow)
-        assert tbl.schema() == {"a": "integer", "b": "string", "c": "integer", "d": "string"}
+        assert tbl.schema() == {
+            "a": "integer",
+            "b": "string",
+            "c": "integer",
+            "d": "string",
+        }
         tbl.update(update_arrow)
         assert tbl.size() == 6
         assert tbl.view().to_columns() == {
@@ -744,7 +756,10 @@ class TestUpdateArrow(object):
         tbl = Table(arrow_data)
         tbl.update(arrow_data)
         assert tbl.size() == 20
-        assert tbl.view().to_columns() == {"a": data[0] + data[0], "b": data[1] + data[1]}
+        assert tbl.view().to_columns() == {
+            "a": data[0] + data[0],
+            "b": data[1] + data[1],
+        }
 
     def test_update_arrow_updates_append_decimal_stream(self, util):
         data = [[i * 1000 for i in range(10)]]

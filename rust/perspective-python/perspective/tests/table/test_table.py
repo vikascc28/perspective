@@ -569,7 +569,7 @@ class TestTable:
 
         s = sentinel(False)
 
-        def updater(port_id, _delta):
+        def updater(port_id):
             s.set(True)
 
         view.on_update(updater)

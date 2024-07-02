@@ -61,9 +61,16 @@ parse_date_time(
         if (!ss.eof() && ss.peek() == '.') {
             ss.ignore();
             std::int32_t ms;
+            const auto len = (date_time_str.size() - ss.tellg());
             ss >> ms;
             LOG_DEBUG("Parsed milliseconds: " << ms);
-            tp += std::chrono::milliseconds(ms);
+            if (len == 6) {
+                LOG_DEBUG("Parsed microseconds: " << ms);
+                tp += std::chrono::microseconds(ms);
+            } else if (len == 3) {
+                LOG_DEBUG("Parsed milliseconds: " << ms);
+                tp += std::chrono::milliseconds(ms);
+            }
         }
 
         if (!ss.eof() && ss.peek() == 'Z') {
