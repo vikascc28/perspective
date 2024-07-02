@@ -18,6 +18,8 @@ exports.WorkerPlugin = function WorkerPlugin(options = {}) {
     const inline = !!options.inline;
     const targetdir = options.targetdir || "build/worker";
     function setup(build) {
+        const options = build.initialOptions;
+        options.metafile = true;
         build.onResolve({ filter: /\.worker(\.js)?$/ }, (args) => {
             if (args.namespace === "worker-stub") {
                 const outfile =

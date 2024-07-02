@@ -287,7 +287,7 @@ jobs:
             - name: Install latest nightly rust
               uses: dtolnay/rust-toolchain@nightly
               with:
-                  toolchain: nightly-2023-10-12
+                  toolchain: nightly-2024-05-07
                   targets: wasm32-unknown-unknown
                   components: rustfmt, clippy, rust-src
 
@@ -328,8 +328,9 @@ jobs:
             ###############
 
             - name: WebAssembly Build
-              run: pnpm run build_js --ci
+              run: pnpm run build --ci
               env:
+                  PACKAGE: "!perspective-python"
                   PSP_USE_CCACHE: 1
 
             # - name: Docs Build
@@ -338,7 +339,7 @@ jobs:
             - name: Lint
               run: pnpm run lint
               env:
-                  PSP_PROJECT: "js"
+                  PACKAGE: "!perspective-python"
 
             #################################
             # Compress and upload Artifacts #
@@ -402,13 +403,13 @@ jobs:
             - uses: actions/upload-artifact@v4
               with:
                   name: nbextension-dist
-                  path: python/perspective/perspective/nbextension
+                  path: rust/perspective-python/perspective/nbextension
                   if-no-files-found: error # TODO
 
             - uses: actions/upload-artifact@v4
               with:
                   name: labextension-dist
-                  path: python/perspective/perspective/labextension
+                  path: rust/perspective-python/perspective/labextension
                   if-no-files-found: error # TODO
 
     ##########################################################################################################################
