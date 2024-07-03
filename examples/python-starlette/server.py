@@ -14,15 +14,16 @@ import asyncio
 import os
 import os.path
 import logging
-import threading
 import uvicorn
 
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles
+from threading import Thread
 
-from perspective import Table, PerspectiveManager, PerspectiveStarletteHandler
+from perspective import LocalPerspective
+from perspective.handlers.starlette import PerspectiveStarletteHandler
 
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -37,28 +38,22 @@ def static_nodemodules_handler(rest_of_path):
     return FileResponse("../../node_modules/@finos/{}".format(rest_of_path))
 
 
-def perspective_thread(manager):
-    """Perspective application thread starts its own event loop, and
-    adds the table with the name "data_source_one", which will be used
-    in the front-end."""
-    psp_loop = asyncio.new_event_loop()
-    manager.set_loop_callback(psp_loop.call_soon_threadsafe)
-    with open(file_path, mode="rb") as file:
-        table = Table(file.read(), index="Row ID")
-        manager.host_table("data_source_one", table)
-    psp_loop.run_forever()
-
-
 def make_app():
-    manager = PerspectiveManager()
-
-    thread = threading.Thread(target=perspective_thread, args=(manager,))
-    thread.daemon = True
-    thread.start()
+    psp = LocalPerspective()
 
     async def websocket_handler(websocket: WebSocket):
-        handler = PerspectiveStarletteHandler(manager=manager, websocket=websocket)
+        handler = PerspectiveStarletteHandler(perspective=psp, websocket=websocket)
         await handler.run()
+
+    async def init_table():
+        table = psp.client.table({"x": "integer"}, name="data_source_one")
+        size = 10
+        for i in range(size):
+            rows = [*range(i * size, (i + 1) * size)]
+            table.update({'x': rows})
+            await asyncio.sleep(5)
+
+    Thread(target=asyncio.run, args=(init_table(), ), daemon=True).start()
 
     # static_html_files = StaticFiles(directory="../python-tornado", html=True)
     static_html_files = StaticFiles(directory="../python-tornado", html=True)
@@ -80,5 +75,5 @@ def make_app():
 
 if __name__ == "__main__":
     app = make_app()
-    logging.critical("Listening on http://localhost:8080")
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    logging.critical("Listening on http://localhost:8082")
+    uvicorn.run(app, host="0.0.0.0", port=8082)

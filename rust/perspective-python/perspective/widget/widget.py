@@ -174,6 +174,8 @@ class _PerspectiveWidgetMessage(object):
         """Returns a dictionary representation of the message."""
         return {"id": self.id, "type": self.type, "data": self.data}
 
+def is_libpsp(): return True
+
 
 class PerspectiveWidget(DOMWidget, PerspectiveViewer):
     """:class`~perspective.PerspectiveWidget` allows for Perspective to be used
@@ -271,12 +273,12 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
         # If `self.client` is True, the front-end `<perspective-viewer>` is
         # given a copy of the data serialized to JSON, and the Python kernel
         # does not create a `perspective.Table.`
-        self.client = client
+        self.client = False
 
         # If `self.server` is True, the widget runs in server-only mode where
         # the front-end `<perspective-viewer>` does not create a Table, and
         # will proxy all operations back to the server.
-        self.server = server
+        self.server = True
 
         # Pass table load options to the front-end, unless in server mode
         self._options = {}
@@ -285,17 +287,17 @@ class PerspectiveWidget(DOMWidget, PerspectiveViewer):
             raise PerspectiveError("Index and Limit cannot be set at the same time!")
 
         # Parse the dataset we pass in - if it's Pandas, preserve pivots
-        if isinstance(data, pandas.DataFrame) or isinstance(data, pandas.Series):
-            data, config = deconstruct_pandas(data)
+        # if isinstance(data, pandas.DataFrame) or isinstance(data, pandas.Series):
+        #     data, config = deconstruct_pandas(data)
 
-            if config.get("group_by", None) and "group_by" not in kwargs:
-                kwargs.update({"group_by": config["group_by"]})
+        #     if config.get("group_by", None) and "group_by" not in kwargs:
+        #         kwargs.update({"group_by": config["group_by"]})
 
-            if config.get("split_by", None) and "split_by" not in kwargs:
-                kwargs.update({"split_by": config["split_by"]})
+        #     if config.get("split_by", None) and "split_by" not in kwargs:
+        #         kwargs.update({"split_by": config["split_by"]})
 
-            if config.get("columns", None) and "columns" not in kwargs:
-                kwargs.update({"columns": config["columns"]})
+        #     if config.get("columns", None) and "columns" not in kwargs:
+        #         kwargs.update({"columns": config["columns"]})
 
         # Initialize the viewer
         super(PerspectiveWidget, self).__init__(**kwargs)

@@ -10,18 +10,17 @@
 #  ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 #  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+import asyncio
 import os
 import os.path
 import logging
 import tornado.websocket
 import tornado.web
 import tornado.ioloop
-import threading
-import concurrent.futures
+from threading import Thread
 
-from perspective.core.globalpsp import shared_client, _psp_server
+from perspective import LocalPerspective
 from perspective.handlers.new_tornado import PerspectiveTornadoHandler
-import asyncio
 
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -29,47 +28,24 @@ file_path = os.path.join(
     here, "..", "..", "node_modules", "superstore-arrow", "superstore.lz4.arrow"
 )
 
-IS_MULTI_THREADED = True
-
-
-def perspective_thread(manager, table):
-    """Perspective application thread starts its own tornado IOLoop, and
-    adds the table with the name "data_source_one", which will be used
-    in the front-end."""
-    psp_loop = tornado.ioloop.IOLoop()
-    manager.host_table("data_source_one", table)
-    if IS_MULTI_THREADED:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            manager.set_loop_callback(psp_loop.run_in_executor, executor)
-            psp_loop.start()
-    else:
-        manager.set_loop_callback(psp_loop.add_callback)
-        psp_loop.start()
-
-
-async def init_table():
-    client = await shared_client()
+async def init_table(perspective):
     # with open(file_path, mode="rb") as file:
     #     data = file.read()
-    table = await client.table({"x": "integer"}, name="data_source_one")
+    table = perspective.client.table({"x": "integer"}, name="data_source_one")
     size = 10
     for i in range(size):
         rows = [*range(i * size, (i + 1) * size)]
-        await table.update({'x': rows})
+        table.update({'x': rows})
         # await table.size()
-        _psp_server.poll()
         await asyncio.sleep(5)
 
-def update_thread():
-    asyncio.run(init_table())
-
-def make_app():
+def make_app(perspective):
     return tornado.web.Application(
         [
             (
                 r"/websocket",
                 PerspectiveTornadoHandler,
-                {},
+                {"perspective": perspective},
             ),
             (
                 r"/node_modules/(.*)",
@@ -86,11 +62,10 @@ def make_app():
 
 
 if __name__ == "__main__":
-    app = make_app()
+    perspective = LocalPerspective()
+    app = make_app(perspective)
     app.listen(8082)
-    logging.critical("Listening on http://localhost:8080")
+    logging.critical("Listening on http://localhost:8082")
     loop = tornado.ioloop.IOLoop.current()
-    t = threading.Thread(target=update_thread)
-    t.daemon = True
-    t.start()
+    Thread(target=asyncio.run, args=(init_table(perspective),), daemon=True).start()
     loop.start()

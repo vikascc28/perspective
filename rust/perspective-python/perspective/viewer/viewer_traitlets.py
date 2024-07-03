@@ -49,45 +49,45 @@ class PerspectiveTraitlets(HasTraits):
     title = Unicode(None, allow_none=True).tag(sync=True)
     version = Unicode(__version__).tag(sync=True)
 
-    @validate("plugin")
-    def _validate_plugin(self, proposal):
-        return validate_plugin(proposal.value)
+    # @validate("plugin")
+    # def _validate_plugin(self, proposal):
+    #     return validate_plugin(proposal.value)
 
-    @validate("columns")
-    def _validate_columns(self, proposal):
-        return validate_columns(proposal.value)
+    # @validate("columns")
+    # def _validate_columns(self, proposal):
+    #     return validate_columns(proposal.value)
 
-    @validate("group_by")
-    def _validate_group_by(self, proposal):
-        return validate_group_by(proposal.value)
+    # @validate("group_by")
+    # def _validate_group_by(self, proposal):
+    #     return validate_group_by(proposal.value)
 
-    @validate("split_by")
-    def _validate_split_by(self, proposal):
-        return validate_split_by(proposal.value)
+    # @validate("split_by")
+    # def _validate_split_by(self, proposal):
+    #     return validate_split_by(proposal.value)
 
-    @validate("aggregates")
-    def _validate_aggregates(self, proposal):
-        return validate_aggregates(proposal.value)
+    # @validate("aggregates")
+    # def _validate_aggregates(self, proposal):
+    #     return validate_aggregates(proposal.value)
 
-    @validate("sort")
-    def _validate_sort(self, proposal):
-        return validate_sort(proposal.value)
+    # @validate("sort")
+    # def _validate_sort(self, proposal):
+    #     return validate_sort(proposal.value)
 
-    @validate("filter")
-    def _validate_filter(self, proposal):
-        return validate_filter(proposal.value)
+    # @validate("filter")
+    # def _validate_filter(self, proposal):
+    #     return validate_filter(proposal.value)
 
-    @validate("expressions")
-    def _validate_expressions(self, proposal):
-        return validate_expressions(proposal.value)
+    # @validate("expressions")
+    # def _validate_expressions(self, proposal):
+    #     return validate_expressions(proposal.value)
 
-    @validate("plugin_config")
-    def _validate_plugin_config(self, proposal):
-        return validate_plugin_config(proposal.value)
+    # @validate("plugin_config")
+    # def _validate_plugin_config(self, proposal):
+    #     return validate_plugin_config(proposal.value)
 
-    @validate("title")
-    def _validate_title(self, proposal):
-        return validate_title(proposal.value)
+    # @validate("title")
+    # def _validate_title(self, proposal):
+    #     return validate_title(proposal.value)
 
     @validate("version")
     def _validate_version(self, proposal):

@@ -10,24 +10,20 @@
 #  ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 #  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-from perspective.core.globalpsp import Session
 from tornado.websocket import WebSocketHandler
 
 
 class PerspectiveTornadoHandler(WebSocketHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def initialize(self, perspective):
+        self._perspective = perspective
 
     def open(self):
-        def inner(_, x):
-            self.write_message(x, binary=True)
-
-        self.session = Session(inner)
+        self._session = self._perspective.session(lambda data: self.write_message(data, binary=True))
 
     def on_close(self) -> None:
-        del self.session
+        del self._session
 
-    async def on_message(self, msg: bytes):
+    def on_message(self, msg: bytes):
         if not isinstance(msg, bytes):
             return
-        await self.session.handle_request(msg)
+        self._session.handle_request(msg)
