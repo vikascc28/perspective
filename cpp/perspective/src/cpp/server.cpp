@@ -1010,7 +1010,7 @@ coerce_to(const t_dtype dtype, const A& val) {
                 scalar.set(std::stoi(val));
                 return scalar;
             case DTYPE_INT64:
-                scalar.set(std::stoll(val));
+                scalar.set((std::int64_t)std::stoll(val));
                 return scalar;
             case DTYPE_TIME: {
                 std::chrono::system_clock::time_point tp;
